@@ -488,7 +488,7 @@ export default function App() {
 
           {activeTab === 'SETTINGS' && renderSettings()}
 
-          {activeTab === 'HOME' && appMode === 'USER' && (
+          {activeTab === 'HOME' && (appMode === 'USER' || (appMode === 'SUPERVISOR' && currentSeniorId)) && (
             <TouchableOpacity
               onPress={() => setShowHealthRecordModal(true)}
               className="absolute bottom-6 right-6 w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg z-50"

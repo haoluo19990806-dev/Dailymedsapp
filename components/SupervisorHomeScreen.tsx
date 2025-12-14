@@ -1,7 +1,7 @@
 import {
-    AlertIcon,
-    CaregiverIcon,
-    CelebrationIcon,
+  AlertIcon,
+  CaregiverIcon,
+  CelebrationIcon,
 } from '@/components/Icons';
 import { MedConfig, Senior, TimeOfDay, TimelineEvent } from '@/types';
 import { getMedStyles, renderMedIcon, renderTimeIcon } from '@/utils/uiHelpers';
