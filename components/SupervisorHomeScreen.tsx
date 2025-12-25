@@ -1,110 +1,75 @@
-import {
-  AlertIcon,
-  CaregiverIcon,
-  CelebrationIcon,
-} from '@/components/Icons';
-import { MedConfig, Senior, TimeOfDay, TimelineEvent } from '@/types';
+import { MedConfig, Senior, TimelineEvent } from '@/types';
 import { getMedStyles, renderMedIcon, renderTimeIcon } from '@/utils/uiHelpers';
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
+// 🔥 [修复] 引入 CheckCircle
+import { CheckCircle, Clock, UserPlus } from 'lucide-react-native';
+import { useTranslation } from 'react-i18next';
 
 interface SupervisorHomeScreenProps {
   currentSeniorId: string | null;
   seniorList: Senior[];
   todaysMeds: MedConfig[];
-  todayRecord: TimelineEvent[]; // 【修改】类型更新为 TimelineEvent[]
+  todayRecord: TimelineEvent[];
 }
 
-export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
-  currentSeniorId,
-  seniorList,
-  todaysMeds,
-  todayRecord,
+export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({ 
+  currentSeniorId, 
+  seniorList, 
+  todaysMeds, 
+  todayRecord 
 }) => {
+  const { t } = useTranslation();
+
+  // 1. 如果没有选择患者，显示空状态
   if (!currentSeniorId) {
     return (
-      <View className="flex-1 items-center justify-center px-6">
-        <CaregiverIcon size={64} color="#cbd5e1" />
-        <Text className="text-xl font-bold text-slate-400 mt-4">请先在设置页选择一位患者</Text>
+      <View className="flex-1 items-center justify-center bg-bg-warm">
+         <View className="opacity-20 mb-4">
+            <UserPlus size={80} color="#334155" />
+         </View>
+         <Text className="text-slate-400 font-bold text-lg">{t('home.select_patient_tip')}</Text>
       </View>
     );
   }
 
-  // 【修改】逻辑更新：筛选出未找到对应打卡记录的药物
-  const missedMeds = todaysMeds.filter(med => 
-    !todayRecord.some(event => event.medId === med.id)
-  );
-  
-  const isSupervisorAllTaken = todaysMeds.length > 0 && missedMeds.length === 0;
-  const currentSeniorNote = seniorList.find(s => s.id === currentSeniorId)?.note || "未知";
-
-  const missedByTime: Record<string, MedConfig[]> = {
-    [TimeOfDay.MORNING]: [], [TimeOfDay.NOON]: [], [TimeOfDay.EVENING]: []
-  };
-  missedMeds.forEach(med => missedByTime[med.timeOfDay]?.push(med));
+  // 获取当前患者对象
+  const currentSenior = seniorList.find(s => s.id === currentSeniorId);
 
   return (
-    <ScrollView className="flex-1 w-full px-4" contentContainerStyle={{ paddingBottom: 100 }}>
-      {/* 顶部状态栏 */}
-      <View className="flex-row justify-between items-center mb-6 mt-4">
-         <Text className="text-2xl font-bold text-slate-700">{currentSeniorNote} 今日情况</Text>
-         <View className="px-3 py-1 bg-blue-50 rounded-lg">
-            <Text className="text-blue-500 font-bold font-mono">ID: {currentSeniorId}</Text>
-         </View>
+    <ScrollView className="flex-1 w-full px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
+      {/* 标题 */}
+      <View className="flex-row items-baseline mb-6 px-2">
+        <Text className="text-3xl font-bold text-slate-800 mr-2">{t('home.today_tasks')}</Text>
+        {currentSenior && (
+           <Text className="text-slate-400 font-bold">({currentSenior.note})</Text>
+        )}
       </View>
 
-      {/* 状态卡片 */}
+      {/* 任务列表 */}
       {todaysMeds.length === 0 ? (
-        <View className="bg-slate-100 rounded-3xl p-8 items-center mb-8">
-          <Text className="text-slate-400 font-bold text-lg">今日无用药安排</Text>
-        </View>
-      ) : isSupervisorAllTaken ? (
-        <View className="bg-success rounded-3xl p-6 mb-8 shadow-sm flex-row items-center gap-4">
-          <View className="w-16 h-16 bg-white/20 rounded-full items-center justify-center">
-             <CelebrationIcon size={40} color="white" />
-          </View>
-          <View>
-             <Text className="text-2xl font-bold text-white">一切正常</Text>
-             <Text className="text-white opacity-90">今日药物已全部服用</Text>
-          </View>
+        <View className="items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 border-dashed">
+          <Text className="text-slate-400 text-lg">{t('home.no_tasks')}</Text>
         </View>
       ) : (
-        <View className="bg-orange-500 rounded-3xl p-6 mb-8 shadow-sm">
-          <View className="flex-row items-center gap-3 mb-4">
-            <AlertIcon size={32} color="white" />
-            <Text className="text-xl font-bold text-white">还有 {missedMeds.length} 种药未吃</Text>
-          </View>
-          <View className="gap-2">
-             {Object.entries(missedByTime).map(([time, meds]) => {
-               if (meds.length === 0) return null;
-               const timeLabel = time === TimeOfDay.MORNING ? '早上' : time === TimeOfDay.NOON ? '中午' : '晚上';
-               return (
-                 <View key={time} className="flex-row items-center gap-2 bg-white/20 px-3 py-2 rounded-xl">
-                    {renderTimeIcon(time as TimeOfDay, 20, "white")}
-                    <Text className="font-medium text-white text-sm">
-                      {timeLabel}有 {meds.length} 种药未打卡
-                    </Text>
-                 </View>
-               )
-             })}
-          </View>
-        </View>
-      )}
+        <View className="gap-4">
+          {todaysMeds.map(med => {
+            // 检查该药物是否已完成
+            const isTaken = todayRecord.some(event => event.medId === med.id);
+            const styles = getMedStyles(med.iconType);
 
-      {/* 药物详情列表 */}
-      <Text className="text-lg font-bold text-slate-500 mb-4 px-2">今日药单详情</Text>
-      <View className="gap-3">
-        {todaysMeds.map(med => {
-          // 【修改】逻辑更新
-          const isTaken = todayRecord.some(event => event.medId === med.id);
-          const styles = getMedStyles(med.iconType);
-          return (
-            <View 
-              key={med.id} 
-              className={`flex-row items-center justify-between p-4 rounded-2xl border-2 ${isTaken ? 'bg-white border-slate-100 opacity-50' : 'bg-white border-orange-100'}`}
-            >
-               <View className="flex-row items-center gap-4">
-                 <View className={`w-12 h-12 rounded-xl ${styles.bg} items-center justify-center`}>
+            return (
+              <View 
+                key={med.id} 
+                className={`flex-row items-center justify-between p-5 rounded-3xl border-2 shadow-sm ${
+                  isTaken 
+                    ? 'bg-emerald-50 border-emerald-100 opacity-80' 
+                    : 'bg-white border-slate-100'
+                }`}
+              >
+                <View className="flex-row items-center gap-4">
+                  {/* 图标 */}
+                  <View className={`w-14 h-14 rounded-2xl ${isTaken ? 'bg-emerald-200' : styles.bg} items-center justify-center`}>
                     {med.name ? (
                       <Text className="text-white font-bold text-xs text-center px-1" numberOfLines={2}>
                         {med.name}
@@ -112,21 +77,37 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
                     ) : (
                       renderMedIcon(med.iconType, 32, "white")
                     )}
-                 </View>
-                 <View>
-                    <View>{renderTimeIcon(med.timeOfDay, 20)}</View>
-                 </View>
-               </View>
-               
-               <View className={`px-4 py-2 rounded-xl ${isTaken ? 'bg-green-100' : 'bg-orange-100'}`}>
-                  <Text className={`font-bold text-sm ${isTaken ? 'text-green-600' : 'text-orange-500'}`}>
-                    {isTaken ? '已服' : '未服'}
-                  </Text>
-               </View>
-            </View>
-          );
-        })}
-      </View>
+                  </View>
+
+                  {/* 信息 */}
+                  <View>
+                    <View className="flex-row items-center gap-2 mb-1">
+                       <Clock size={14} color={isTaken ? "#10b981" : "#94a3b8"} />
+                       <View className="flex-row gap-1">
+                          {renderTimeIcon(med.timeOfDay)}
+                       </View>
+                    </View>
+                    <Text className={`font-bold text-lg ${isTaken ? 'text-emerald-700' : 'text-slate-700'}`}>
+                       {isTaken ? t('home.completed') : t('home.pending')}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* 状态图标 */}
+                <View>
+                   {isTaken ? (
+                      // 🔥 [修复] 这里的 CheckCircle 现在可以被正确找到了
+                      // 注意：lucide-react-native 的 fill 属性用于填充颜色，weight 属性可能不被支持，已移除 weight 以防万一
+                      <CheckCircle size={32} color="#10b981" fill="#10b981" />
+                   ) : (
+                      <View className="w-8 h-8 rounded-full border-4 border-slate-100" />
+                   )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 };

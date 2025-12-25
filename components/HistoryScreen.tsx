@@ -1,6 +1,7 @@
 import { LogList } from '@/components/LogList';
 import { HistoryRecord, MedConfig } from '@/types';
 import React, { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FlatList, Text, TouchableOpacity, View } from 'react-native';
 
 interface HistoryScreenProps {
@@ -10,6 +11,7 @@ interface HistoryScreenProps {
 }
 
 export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, isSupervisor }) => {
+  const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const now = new Date();
     const y = now.getFullYear();
@@ -28,25 +30,34 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
       const day = String(d.getDate()).padStart(2, '0');
       const dateKey = `${y}-${m}-${day}`;
       
-      const dayOfWeek = ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
-      // 【新增】monthLabel
-      const monthLabel = `${d.getMonth() + 1}月`;
+      const dayNum = d.getDay(); 
       
-      list.push({ dateKey, dayLabel: day, weekLabel: dayOfWeek, monthLabel });
+      list.push({ 
+        dateKey, 
+        dayLabel: day, 
+        dayNum,
+        month: d.getMonth() + 1
+      });
     }
     return list;
-  }, []);
+  }, []); 
 
   const dayEvents = history[selectedDate] || [];
   const getMedConfig = (medId: string) => config.find(c => c.id === medId);
 
+  const getWeekLabel = (dayNum: number) => {
+    const weeks = t('trends.axis.1w_labels', { returnObjects: true }) as string[];
+    let index = dayNum - 1; 
+    if (index < 0) index = 6;
+    return weeks[index];
+  };
+
   return (
     <View className="flex-1 w-full bg-white pt-4">
       <Text className="text-3xl font-bold text-slate-700 mb-6 px-6">
-        {isSupervisor ? '患者历史记录' : '我的历史记录'}
+        {isSupervisor ? t('history.patient_title') : t('history.my_title')}
       </Text>
 
-      {/* 【修改】增加高度 h-24 -> h-28 以容纳更多信息 */}
       <View className="h-28 mb-2">
         <FlatList
           data={dates}
@@ -59,16 +70,14 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
             return (
               <TouchableOpacity
                 onPress={() => setSelectedDate(item.dateKey)}
-                // 【修改】调整高度 h-24
                 className={`w-16 h-24 rounded-2xl items-center justify-center border-2 ${
                   isSelected 
                     ? 'bg-slate-800 border-slate-800' 
                     : 'bg-white border-slate-100'
                 }`}
               >
-                {/* 【新增】月份显示 */}
                 <Text className={`text-[10px] font-bold ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}>
-                  {item.monthLabel}
+                  {item.month}{t('history.month_suffix')}
                 </Text>
                 
                 <Text className={`text-xl font-bold my-1 ${isSelected ? 'text-white' : 'text-slate-700'}`}>
@@ -76,7 +85,7 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
                 </Text>
                 
                 <Text className={`text-xs font-bold ${isSelected ? 'text-slate-400' : 'text-slate-400'}`}>
-                  周{item.weekLabel}
+                  {t('history.week_prefix')}{getWeekLabel(item.dayNum)}
                 </Text>
                 
                 {isSelected && <View className="w-1 h-1 bg-orange-400 rounded-full mt-1" />}
@@ -89,16 +98,18 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
       <View className="flex-1">
         <View className="px-6 mb-2 flex-row justify-between items-end">
            <Text className="text-lg font-bold text-slate-500">
-             {selectedDate} 详情
+             {selectedDate} {t('history.details')}
            </Text>
            <Text className="text-xs font-bold text-slate-400 mb-1">
-             共 {dayEvents.length} 条记录
+             {t('history.total_records', {count: dayEvents.length})}
            </Text>
         </View>
         
+        {/* 🔥 修复点：将 isSupervisor 传递给 LogList */}
         <LogList 
           events={dayEvents} 
           getMedConfig={getMedConfig} 
+          isSupervisor={isSupervisor}
         />
       </View>
     </View>
