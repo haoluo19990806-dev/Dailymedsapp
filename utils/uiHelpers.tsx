@@ -1,31 +1,31 @@
 import {
-    BoxIcon,
-    CandyIcon,
-    CapsuleIcon,
-    DropIcon,
-    EveningIcon,
-    MorningIcon,
-    NeedleIcon,
-    NoonIcon,
-    PillIcon
+  BoxIcon,
+  CandyIcon,
+  CapsuleIcon,
+  DropIcon,
+  EveningIcon,
+  NeedleIcon,
+  NoonIcon,
+  PillIcon
 } from '@/components/Icons';
 import { HealthDataType, MedIconType, TimeOfDay } from '@/types';
-import React from 'react';
+import React from 'react'; // 🔥 修复：必须引入 React 才能使用 JSX
+import { View } from 'react-native'; // 🔥 修复：引入 View 用于图标裁剪
 
-// 获取药物对应的颜色样式
+// 1. 获取药物对应的颜色样式
 export const getMedStyles = (type: MedIconType) => {
   switch (type) {
     case MedIconType.CANDY: return { bg: 'bg-sugar-pending' };
     case MedIconType.DROP: return { bg: 'bg-pressure-pending' };
     case MedIconType.NEEDLE: return { bg: 'bg-insulin-pending' };
-    case MedIconType.CAPSULE: return { bg: 'bg-capsule-pending' }; // 使用配置中的颜色
-    case MedIconType.PILL: return { bg: 'bg-pill-pending' };       // 使用配置中的颜色
-    case MedIconType.PATCH: return { bg: 'bg-patch-pending' };     // 使用配置中的颜色
+    case MedIconType.CAPSULE: return { bg: 'bg-capsule-pending' };
+    case MedIconType.PILL: return { bg: 'bg-pill-pending' };
+    case MedIconType.PATCH: return { bg: 'bg-patch-pending' };
     default: return { bg: 'bg-slate-400' };
   }
 };
 
-// 渲染药物图标
+// 2. 渲染药物图标
 export const renderMedIcon = (type: MedIconType, size = 32, color = "white") => {
   switch (type) {
     case MedIconType.CANDY: return <CandyIcon size={size} color={color} />;
@@ -38,17 +38,28 @@ export const renderMedIcon = (type: MedIconType, size = 32, color = "white") => 
   }
 };
 
-// 渲染时间图标 (早/中/晚)
+// 3. 渲染时间图标 (🔥 修改：早晨显示为一半的中午图标)
 export const renderTimeIcon = (time: TimeOfDay, size = 24, color = "#94a3b8") => {
   switch(time) {
-    case TimeOfDay.MORNING: return <MorningIcon size={size} color={color} />;
-    case TimeOfDay.NOON: return <NoonIcon size={size} color={color} />;
-    case TimeOfDay.EVENING: return <EveningIcon size={size} color={color} />;
-    default: return null;
+    case TimeOfDay.MORNING:
+      // 🔥 实现“半个太阳”：复用 NoonIcon，通过外层 View 裁剪掉下半部分
+      return (
+        <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: size, height: size * 0.55, overflow: 'hidden', alignItems: 'center' }}>
+            <NoonIcon size={size} color={color} />
+          </View>
+        </View>
+      );
+    case TimeOfDay.NOON: 
+      return <NoonIcon size={size} color={color} />;
+    case TimeOfDay.EVENING: 
+      return <EveningIcon size={size} color={color} />;
+    default: 
+      return null;
   }
 };
 
-// 渲染健康数据图标
+// 4. 渲染健康数据图标
 export const renderHealthIcon = (type: HealthDataType, size = 24, color = "white") => {
   switch (type) {
     case HealthDataType.BLOOD_PRESSURE: 
@@ -68,7 +79,7 @@ export const renderHealthIcon = (type: HealthDataType, size = 24, color = "white
   }
 };
 
-// 获取健康数据类型的显示名称和单位
+// 5. 获取健康数据类型的显示名称和单位
 export const getHealthTypeInfo = (type: HealthDataType) => {
   switch (type) {
     case HealthDataType.BLOOD_PRESSURE: return { label: "血压", unit: "mmHg", color: "bg-red-400" };
