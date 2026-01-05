@@ -9,17 +9,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        'sugar-pending': '#FF8FA3',    // 糖果粉
-        'pressure-pending': '#64C7FF', // 水滴蓝
-        // 【新增】补充缺失的药物颜色定义
-        'insulin-pending': '#FCD34D',  // 针管黄
-        'capsule-pending': '#A78BFA',  // 胶囊紫
-        'pill-pending': '#FCA5A5',     // 药片红
-        'patch-pending': '#86EFAC',    // 药盒绿 (Patch/Box)
+       'sugar-pending': '#FF8FA3',
+        'pressure-pending': '#64C7FF',
+        'insulin-pending': '#FCD34D',
+        'capsule-pending': '#A78BFA',
+        'pill-pending': '#FCA5A5',
+        'patch-pending': '#86EFAC',
+        'success': '#4ADE80',
+        'success-dark': '#22C55E',
+        'bg-warm': '#FFF8F0',
         
-        'success': '#4ADE80',          // 成功绿
-        'success-dark': '#22C55E',     // 深绿
-        'bg-warm': '#FFF8F0',          // 暖白背景
+        // --- 新增以下标准色，方便组件统一调用 ---
+        'primary': '#3b82f6',    // 主色调（蓝）
+        'secondary': '#64748b',  // 次要色（灰）
+        'danger': '#ef4444',     // 警告色（红）
+        'warning': '#f59e0b',    // 提醒色（黄）
       },
     },
   },

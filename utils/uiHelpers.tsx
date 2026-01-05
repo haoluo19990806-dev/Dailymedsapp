@@ -9,8 +9,8 @@ import {
   PillIcon
 } from '@/components/Icons';
 import { HealthDataType, MedIconType, TimeOfDay } from '@/types';
-import React from 'react'; // 🔥 修复：必须引入 React 才能使用 JSX
-import { View } from 'react-native'; // 🔥 修复：引入 View 用于图标裁剪
+import React from 'react';
+import { View } from 'react-native';
 
 // 1. 获取药物对应的颜色样式
 export const getMedStyles = (type: MedIconType) => {
@@ -38,16 +38,18 @@ export const renderMedIcon = (type: MedIconType, size = 32, color = "white") => 
   }
 };
 
-// 3. 渲染时间图标 (🔥 修改：早晨显示为一半的中午图标)
+// 3. 渲染时间图标 (优化版：早晨显示为地平线升起的半个太阳)
 export const renderTimeIcon = (time: TimeOfDay, size = 24, color = "#94a3b8") => {
   switch(time) {
     case TimeOfDay.MORNING:
-      // 🔥 实现“半个太阳”：复用 NoonIcon，通过外层 View 裁剪掉下半部分
       return (
         <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-          <View style={{ width: size, height: size * 0.55, overflow: 'hidden', alignItems: 'center' }}>
+          {/* 裁剪下半部分，模拟日出 */}
+          <View style={{ width: size, height: size * 0.6, overflow: 'hidden', alignItems: 'center' }}>
             <NoonIcon size={size} color={color} />
           </View>
+          {/* 底部加一条地平线 */}
+          <View style={{ width: size, height: 2, backgroundColor: color, marginTop: 1, opacity: 0.5 }} />
         </View>
       );
     case TimeOfDay.NOON: 
@@ -62,20 +64,13 @@ export const renderTimeIcon = (time: TimeOfDay, size = 24, color = "#94a3b8") =>
 // 4. 渲染健康数据图标
 export const renderHealthIcon = (type: HealthDataType, size = 24, color = "white") => {
   switch (type) {
-    case HealthDataType.BLOOD_PRESSURE: 
-      return <DropIcon size={size} color={color} />;
-    case HealthDataType.BLOOD_SUGAR: 
-      return <CandyIcon size={size} color={color} />;
-    case HealthDataType.TEMPERATURE: 
-      return <NeedleIcon size={size} color={color} />;
-    case HealthDataType.WEIGHT: 
-      return <BoxIcon size={size} color={color} />;
-    case HealthDataType.HEART_RATE: 
-      return <DropIcon size={size} color={color} />;
-    case HealthDataType.SPO2: 
-      return <DropIcon size={size} color={color} />;
-    default: 
-      return <BoxIcon size={size} color={color} />;
+    case HealthDataType.BLOOD_PRESSURE: return <DropIcon size={size} color={color} />;
+    case HealthDataType.BLOOD_SUGAR: return <CandyIcon size={size} color={color} />;
+    case HealthDataType.TEMPERATURE: return <NeedleIcon size={size} color={color} />;
+    case HealthDataType.WEIGHT: return <BoxIcon size={size} color={color} />;
+    case HealthDataType.HEART_RATE: return <DropIcon size={size} color={color} />;
+    case HealthDataType.SPO2: return <DropIcon size={size} color={color} />;
+    default: return <BoxIcon size={size} color={color} />;
   }
 };
 

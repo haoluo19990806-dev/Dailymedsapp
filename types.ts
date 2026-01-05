@@ -21,7 +21,7 @@ export enum FrequencyType {
   INTERVAL = 'INTERVAL',
 }
 
-// 【新增】身体数据类型
+// 身体数据类型
 export enum HealthDataType {
   BLOOD_PRESSURE = 'BLOOD_PRESSURE', // 血压 (高压/低压)
   BLOOD_SUGAR = 'BLOOD_SUGAR',       // 血糖
@@ -34,7 +34,7 @@ export enum HealthDataType {
 
 // --- 核心接口定义 ---
 
-// 1. 药物配置 (MedConfig) - 保持不变，但增加可选字段以便扩展
+// 1. 药物配置
 export interface MedConfig {
   id: string;
   iconType: MedIconType;
@@ -48,37 +48,34 @@ export interface MedConfig {
   name?: string;
 }
 
-// 2. 【新增】身体数据记录值结构
+// 2. 身体数据记录值结构
 export interface HealthValue {
-  value1: number;       // 主数值 (如血糖值、高压、体温)
-  value2?: number;      // 副数值 (如低压，仅血压需要)
-  unit: string;         // 单位 (如 mmHg, mmol/L, kg)
+  value1: number;       // 主数值
+  value2?: number;      // 副数值
+  unit: string;         // 单位
 }
 
-// 3. 【升级】时间线事件类型 (TimelineEvent)
-// 这是一个联合类型，用于在历史页面混合展示
+// 3. 时间线事件类型
 export type EventType = 'MEDICATION' | 'HEALTH_RECORD';
 
 export interface TimelineEvent {
-  id: string;           // 事件唯一ID (UUID)
-  type: EventType;      // 事件类型: 吃药 或 测数据
-  timestamp: number;    // 精确时间戳 (Date.now())
-  dateKey: string;      // 日期键 "YYYY-MM-DD" (方便索引)
+  id: string;           // 事件唯一ID
+  type: EventType;      // 事件类型
+  timestamp: number;    // 精确时间戳
+  dateKey: string;      // 日期键 "YYYY-MM-DD"
   
-  // --- 如果是“吃药”事件 ---
-  medId?: string;       // 关联的药物配置ID
-  medName?: string;     // 冗余存储药物名称 (防止配置被删后无法显示)
-  isTaken?: boolean;    // 是否已服 (通常为true)
+  // 吃药事件字段
+  medId?: string;       
+  medName?: string;     
+  isTaken?: boolean;    
 
-  // --- 如果是“身体数据”事件 ---
-  healthType?: HealthDataType; // 数据类型 (血压/血糖等)
-  healthValue?: HealthValue;   // 数值对象
-  note?: string;               // 备注 (如 "饭后", "感觉头晕")
+  // 身体数据事件字段
+  healthType?: HealthDataType; 
+  healthValue?: HealthValue;   
+  note?: string;               
 }
 
-// 4. 【重构】历史记录存储结构
-// 旧结构: { "2023-10-01": ["med_id_1", "med_id_2"] }
-// 新结构: { "2023-10-01": [TimelineEvent, TimelineEvent...] }
+// 4. 历史记录存储结构
 export interface HistoryRecord {
   [date: string]: TimelineEvent[]; 
 }
@@ -90,3 +87,29 @@ export interface Senior {
   config: MedConfig[];
   history: HistoryRecord;
 }
+
+// --- 【补全】缺失的类型定义 ---
+
+// 6. 监督者概览数据项 (DashboardItem)
+export interface DashboardItem {
+  id: string;
+  name: string;
+  total: number;
+  taken: number;
+  isAllDone: boolean;
+}
+
+// 7. 页面标签 (Tab)
+export type Tab = 
+  | 'HOME'        // 概览 / 患者主页
+  | 'SETTINGS'    // 设置
+  | 'TASKS'       // 专注模式：任务
+  | 'FOCUS_HISTORY' // 专注模式：历史
+  | 'FOCUS_TRENDS'  // 专注模式：趋势
+  | 'ADD_MED' 
+  | 'LANGUAGE'
+  | 'TRENDS'      // 患者模式趋势
+  | 'HISTORY';    // 患者模式历史
+
+// 8. 应用模式 (AppMode)
+export type AppMode = 'LANDING' | 'USER' | 'SUPERVISOR';
