@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { LoginScreen } from '../components/LoginScreen'; // 确认你的路径是否正确
 import { supabase } from '../lib/supabase';
 
@@ -23,23 +24,20 @@ export default function RootLayout() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#10b981" />
-      </View>
-    );
-  }
-
-  // 3. 如果没登录，直接显示登录组件，不渲染后续的页面堆栈
-  if (!session) {
-    return <LoginScreen />;
-  }
-
-  // 4. 如果已登录，正常显示 app 文件夹下的页面
+  // 包裹整个应用，确保所有手势都能正常工作
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" /> 
-    </Stack>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#10b981" />
+        </View>
+      ) : !session ? (
+        <LoginScreen />
+      ) : (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" /> 
+        </Stack>
+      )}
+    </GestureHandlerRootView>
   );
 }

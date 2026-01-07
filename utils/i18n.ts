@@ -29,6 +29,16 @@ const resources = {
       "home.pending": "待完成",
       "home.no_tasks": "今日暂无任务",
 
+      // --- 监督者模式 ---
+      "supervisor.overview": "监护概览",
+      "supervisor.all_patients_progress": "今日所有患者服药进度",
+      "supervisor.viewing": "正在查看",
+      "supervisor.all_tasks_done": "今日任务已完成",
+      "supervisor.progress": "进度",
+      "supervisor.no_patients": "暂无绑定患者",
+      "supervisor.add_code_tip": "请去\"设置\"添加监督码",
+      "supervisor.back_to_overview": "返回概览",
+
       // --- 设置页 ---
       "settings.title": "设置",
       "settings.section_account": "账户与绑定",
@@ -44,6 +54,11 @@ const resources = {
       "settings.no_patient_tip": "请先选择或添加患者",
       "settings.enable_more": "以启用更多设置项",
       "settings.unnamed": "未命名",
+      "settings.unbind_management": "解除绑定管理",
+      "settings.management_list": "管理列表",
+      "settings.select_patient_to_manage": "选择患者以管理",
+      "settings.new_requests": "有 {{count}} 条新的监督申请",
+      "settings.click_to_view": "点击查看并处理",
 
       // --- 药物管理 ---
       "med_mgmt.title": "药物管理",
@@ -159,7 +174,14 @@ const resources = {
       // --- 语言页 ---
       "lang.title": "语言",
       "lang.zh": "简体中文",
-      "lang.en": "English"
+      "lang.en": "English",
+
+      // --- 通用 ---
+      "app.loading": "加载中...",
+      "app.logout_title": "退出登录",
+      "app.logout_message": "确定要退出吗？",
+      "app.logout_cancel": "取消",
+      "app.logout_confirm": "退出"
     }
   },
   en: {
@@ -180,10 +202,20 @@ const resources = {
       "header.mode_supervisor": "Supervisor Mode",
 
       "home.select_patient_tip": "Please select a patient in Settings first",
-      "home.today_tasks": "Today's Tasks",
+      "home.today_tasks": "Tasks",
       "home.completed": "Done",
       "home.pending": "Pending",
       "home.no_tasks": "No tasks for today",
+
+      // --- Supervisor Mode ---
+      "supervisor.overview": "Supervisor Overview",
+      "supervisor.all_patients_progress": "Today's progress",
+      "supervisor.viewing": "Currently Viewing",
+      "supervisor.all_tasks_done": "All tasks completed",
+      "supervisor.progress": "Progress",
+      "supervisor.no_patients": "No patients bound",
+      "supervisor.add_code_tip": "Go to Settings to add supervisor code",
+      "supervisor.back_to_overview": "Back to Overview",
 
       "settings.title": "Settings",
       "settings.section_account": "Account & Binding",
@@ -199,6 +231,11 @@ const resources = {
       "settings.no_patient_tip": "Select or add a patient",
       "settings.enable_more": "to enable more settings",
       "settings.unnamed": "Unnamed",
+      "settings.unbind_management": "Unbind Management",
+      "settings.management_list": "",
+      "settings.select_patient_to_manage": "",
+      "settings.new_requests": "{{count}} new supervisor requests",
+      "settings.click_to_view": "Tap to view",
 
       "med_mgmt.title": "Medications",
       "med_mgmt.section_added": "Added Meds",
@@ -305,7 +342,14 @@ const resources = {
 
       "lang.title": "Language",
       "lang.zh": "Chinese",
-      "lang.en": "English"
+      "lang.en": "English",
+
+      // --- General ---
+      "app.loading": "Loading...",
+      "app.logout_title": "Logout",
+      "app.logout_message": "Are you sure you want to logout?",
+      "app.logout_cancel": "Cancel",
+      "app.logout_confirm": "Logout"
     }
   }
 };

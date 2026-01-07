@@ -40,14 +40,14 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
     return (
       <ScrollView className="flex-1 w-full px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
         <View className="mb-6 px-2">
-          <Text className="text-3xl font-bold text-slate-800">监护概览</Text>
-          <Text className="text-slate-400 text-base">今日所有患者服药进度</Text>
+          <Text className="text-3xl font-bold text-slate-800 mb-1">{t('supervisor.overview')}</Text>
+          <Text className="text-base font-bold text-slate-400">{t('supervisor.all_patients_progress')}</Text>
         </View>
 
         {dashboardData.length === 0 ? (
           <View className="items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 border-dashed">
-            <Text className="text-slate-400 text-lg">暂无绑定患者</Text>
-            <Text className="text-slate-300 text-sm mt-2">请去“设置”添加监督码</Text>
+            <Text className="text-slate-400 text-lg">{t('supervisor.no_patients')}</Text>
+            <Text className="text-slate-300 text-sm mt-2">{t('supervisor.add_code_tip')}</Text>
           </View>
         ) : (
           <View className="gap-4">
@@ -65,7 +65,7 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
                   <View>
                     <Text className="text-lg font-bold text-slate-700">{item.name}</Text>
                     <Text className={`text-sm font-bold ${item.isAllDone ? 'text-emerald-600' : 'text-slate-400'}`}>
-                      {item.isAllDone ? '今日任务已完成' : `进度: ${item.taken} / ${item.total}`}
+                      {item.isAllDone ? t('supervisor.all_tasks_done') : `${t('supervisor.progress')}: ${item.taken} / ${item.total}`}
                     </Text>
                   </View>
                 </View>
@@ -95,8 +95,10 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
     <ScrollView className="flex-1 w-full px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
       {/* 这里的标题栏也可以简化，因为 index.tsx 会有统一的 Header */}
       <View className="mb-6 px-2">
-         <Text className="text-3xl font-bold text-slate-800">今日任务</Text>
-         {currentSenior && <Text className="text-slate-400 font-bold mt-1">正在查看: {currentSenior.note}</Text>}
+         {currentSenior && (
+           <Text className="text-3xl font-bold text-slate-800 mb-1">{currentSenior.note}</Text>
+         )}
+         <Text className="text-base font-bold text-slate-400">{t('home.today_tasks')}</Text>
       </View>
 
       {todaysMeds.length === 0 ? (
@@ -113,29 +115,41 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
               <View 
                 key={med.id} 
                 className={`flex-row items-center justify-between p-5 rounded-3xl border-2 shadow-sm ${
-                  isTaken ? 'bg-emerald-50 border-emerald-100 opacity-80' : 'bg-white border-slate-100'
+                  isTaken ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-100'
                 }`}
               >
-                <View className="flex-row items-center gap-4">
-                  <View className={`w-14 h-14 rounded-2xl ${isTaken ? 'bg-emerald-200' : styles.bg} items-center justify-center`}>
+                <View className="flex-row items-center gap-4 flex-1">
+                  <View className={`w-14 h-14 rounded-2xl ${isTaken ? 'bg-emerald-300' : styles.bg} items-center justify-center`}>
                     {med.name ? (
-                      <Text className="text-white font-bold text-xs text-center px-1" numberOfLines={2}>{med.name}</Text>
+                      <Text className={`font-bold text-xs text-center px-1 ${isTaken ? 'text-emerald-900' : 'text-white'}`} numberOfLines={2}>{med.name}</Text>
                     ) : (
-                      renderMedIcon(med.iconType, 32, "white")
+                      renderMedIcon(med.iconType, 32, isTaken ? "#065f46" : "white")
                     )}
                   </View>
-                  <View>
+                  <View className="flex-1">
+                    {/* 药物名称 - 已完成时更突出 */}
+                    {med.name && (
+                      <Text className={`font-bold mb-1 ${isTaken ? 'text-emerald-800 text-base' : 'text-slate-700 text-sm'}`} numberOfLines={1}>
+                        {med.name}
+                      </Text>
+                    )}
                     <View className="flex-row items-center gap-2 mb-1">
                        <Clock size={14} color={isTaken ? "#10b981" : "#94a3b8"} />
-                       <View className="flex-row gap-1">{renderTimeIcon(med.timeOfDay)}</View>
+                       <View className="flex-row gap-1">{renderTimeIcon(med.timeOfDay, 18, isTaken ? "#10b981" : "#94a3b8")}</View>
                     </View>
-                    <Text className={`font-bold text-lg ${isTaken ? 'text-emerald-700' : 'text-slate-700'}`}>
+                    <Text className={`font-bold text-sm ${isTaken ? 'text-emerald-600' : 'text-slate-700'}`}>
                        {isTaken ? t('home.completed') : t('home.pending')}
                     </Text>
                   </View>
                 </View>
-                <View>
-                   {isTaken ? <CheckCircle size={32} color="#10b981" fill="#10b981" /> : <View className="w-8 h-8 rounded-full border-4 border-slate-100" />}
+                <View className="ml-2">
+                   {isTaken ? (
+                     <View className="w-8 h-8 rounded-full bg-emerald-500 items-center justify-center">
+                       <View className="w-4 h-4 rounded-full bg-white" />
+                     </View>
+                   ) : (
+                     <View className="w-8 h-8 rounded-full border-4 border-slate-100" />
+                   )}
                 </View>
               </View>
             );
@@ -145,3 +159,4 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
     </ScrollView>
   );
 };
+

@@ -95,7 +95,7 @@ export const UserHomeScreen: React.FC<UserHomeScreenProps> = ({
                             </Text>
                         ) : (
                             <View style={{ opacity: isTaken ? 0 : 1 }}>
-                                {renderMedIcon(med.iconType, 42, "white")}
+                                {renderMedIcon(med.iconType, 60, "white")}
                             </View>
                         )}
 

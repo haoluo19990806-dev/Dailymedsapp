@@ -49,8 +49,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         <TouchableOpacity onPress={() => setShowRequestModal(true)} className="mx-2 mb-4 p-4 bg-orange-50 rounded-2xl border border-orange-100 flex-row items-center gap-3">
           <View className="bg-orange-100 p-2 rounded-full"><Bell size={20} color="#f97316" /></View>
           <View className="flex-1">
-            <Text className="text-orange-700 font-bold text-base">有 {incomingRequests.length} 条新的监督申请</Text>
-            <Text className="text-orange-400 text-xs">点击查看并处理</Text>
+            <Text className="text-orange-700 font-bold text-base">{t('settings.new_requests', { count: incomingRequests.length })}</Text>
+            <Text className="text-orange-400 text-xs">{t('settings.click_to_view')}</Text>
           </View>
           <View className="w-2 h-2 bg-red-500 rounded-full" />
         </TouchableOpacity>
@@ -66,9 +66,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           />
         ) : (
           <SettingsItem 
-            label="解除绑定管理" 
+            label={t('settings.unbind_management')} 
             icon={<UserCog size={22} color="#3b82f6" />} 
-            rightText="管理列表" 
+            rightText={t('settings.management_list')} 
             onPress={() => { setIsSelectingForMedMgmt(false); setShowSeniorListModal(true); }} 
           />
         )}
@@ -105,7 +105,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <SettingsItem 
               label={t('settings.med_mgmt')} 
               icon={<Pill size={22} color="#10b981" />} 
-              rightText="选择患者以管理" 
+              rightText={t('settings.select_patient_to_manage')} 
               onPress={() => { setIsSelectingForMedMgmt(true); setShowSeniorListModal(true); }} 
             />
           </SettingsGroup>
@@ -131,7 +131,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       <View className="mt-8 px-4 pb-12">
         <TouchableOpacity onPress={handleLogout} className="flex-row items-center justify-center bg-red-50 py-4 rounded-2xl active:bg-red-100 border border-red-100">
           <LogOut size={20} color="#ef4444" className="mr-2" />
-          <Text className="text-red-500 font-bold text-lg ml-2">退出登录</Text>
+          <Text className="text-red-500 font-bold text-lg ml-2">{t('app.logout_confirm')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
