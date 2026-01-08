@@ -20,14 +20,20 @@ interface SyncTask {
 export const syncQueue = {
   /**
    * 添加同步任务到队列
+   * @param task - 新任务（不包含 timestamp 和 retries）或完整任务（用于重试时保留 retries）
    */
-  addTask: async (task: Omit<SyncTask, 'timestamp' | 'retries'>): Promise<void> => {
+  addTask: async (task: Omit<SyncTask, 'timestamp' | 'retries'> | SyncTask): Promise<void> => {
     try {
       const queue = await syncQueue.getQueue();
+      // 检查是否是完整任务（用于重试）
+      const isFullTask = 'retries' in task && 'timestamp' in task;
+      const retries = isFullTask ? (task as SyncTask).retries : 0;
+      const timestamp = isFullTask ? (task as SyncTask).timestamp : Date.now();
+      
       queue.push({
         ...task,
-        timestamp: Date.now(),
-        retries: 0,
+        timestamp,
+        retries,
       });
       await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
     } catch (e) {
@@ -102,9 +108,13 @@ export const syncQueue = {
               // 同步失败，增加重试次数
               task.retries++;
               if (task.retries < 3) {
-                // 更新队列
+                // 更新队列，保留 retries 计数
                 await syncQueue.removeTask(task.id);
-                await syncQueue.addTask(task);
+                await syncQueue.addTask({
+                  ...task,
+                  retries: task.retries,
+                  timestamp: task.timestamp, // 保留原始时间戳
+                });
               } else {
                 // 超过重试次数，移除任务（避免无限重试）
                 await syncQueue.removeTask(task.id);
@@ -126,7 +136,11 @@ export const syncQueue = {
           task.retries++;
           if (task.retries < 3) {
             await syncQueue.removeTask(task.id);
-            await syncQueue.addTask(task);
+            await syncQueue.addTask({
+              ...task,
+              retries: task.retries,
+              timestamp: task.timestamp, // 保留原始时间戳
+            });
           } else {
             await syncQueue.removeTask(task.id);
           }

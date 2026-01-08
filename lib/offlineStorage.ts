@@ -42,6 +42,12 @@ export const offlineStorage = {
    */
   addEventLocally: async (event: TimelineEvent): Promise<void> => {
     try {
+      // 验证 dateKey 是否存在
+      if (!event.dateKey || typeof event.dateKey !== 'string') {
+        console.error('addEventLocally: event.dateKey is missing or invalid', event);
+        return;
+      }
+
       const history = await offlineStorage.loadHistory();
       const dateKey = event.dateKey;
       

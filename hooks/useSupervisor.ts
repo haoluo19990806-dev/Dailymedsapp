@@ -9,7 +9,10 @@ import { useCallback, useState } from 'react';
 const shouldTakeMed = (med: MedConfig, targetDateStr: string): boolean => {
   if (med.frequencyType === FrequencyType.WEEKLY) {
     const date = new Date(targetDateStr);
-    let dayNum = date.getDay(); if (dayNum === 0) dayNum = 7;
+    // 重要：JavaScript getDay() 返回 0-6 (0=Sunday, ..., 6=Saturday)
+    // 转换为 1-7 (1=Monday, ..., 7=Sunday) 以匹配 med.days 数组
+    let dayNum = date.getDay();
+    if (dayNum === 0) dayNum = 7; // Sunday (0) -> 7, 不是 1！
     return med.days.includes(dayNum);
   } else if (med.frequencyType === FrequencyType.INTERVAL && med.startDate && med.interval) {
     const start = new Date(med.startDate).setHours(0,0,0,0);

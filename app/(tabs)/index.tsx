@@ -155,7 +155,10 @@ export default function App() {
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
         setCurrentDateKey(`${year}-${month}-${day}`);
-        let dayNum = now.getDay(); if (dayNum === 0) dayNum = 7;
+        // 重要：JavaScript getDay() 返回 0-6 (0=Sunday, 1=Monday, ..., 6=Saturday)
+        // 转换为 1-7 (1=Monday, 2=Tuesday, ..., 7=Sunday) 以匹配 med.days 数组
+        let dayNum = now.getDay();
+        if (dayNum === 0) dayNum = 7; // Sunday (0) -> 7, 不是 1！
         setCurrentDayOfWeek(dayNum);
 
         await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false, shouldDuckAndroid: true });
