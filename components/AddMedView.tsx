@@ -2,6 +2,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // 引入依赖组件和工具
 import { ConfigBuilder } from '@/components/ConfigBuilder';
@@ -17,6 +18,7 @@ interface AddMedViewProps {
   setActiveTab: (tab: Tab) => void;
   onSaveMed: (newMed: MedConfig) => Promise<void>;
   onRemoveMed: (id: string) => Promise<void>;
+  onBack?: () => void; // 自定义返回处理
 }
 
 export const AddMedView: React.FC<AddMedViewProps> = ({
@@ -26,7 +28,8 @@ export const AddMedView: React.FC<AddMedViewProps> = ({
   config,
   setActiveTab,
   onSaveMed,
-  onRemoveMed
+  onRemoveMed,
+  onBack
 }) => {
   const { t } = useTranslation();
 
@@ -37,11 +40,11 @@ export const AddMedView: React.FC<AddMedViewProps> = ({
     : t('med_mgmt.title');
 
   return (
-    <View className="flex-1 bg-bg-warm">
+    <SafeAreaView className="flex-1 bg-bg-warm" edges={['bottom']}>
       {/* 顶部导航栏 */}
       <View className="flex-row items-center px-4 py-3 bg-bg-warm border-b border-slate-100/50">
         <TouchableOpacity 
-          onPress={() => setActiveTab('SETTINGS')} 
+          onPress={() => onBack ? onBack() : setActiveTab('SETTINGS')} 
           className="p-2 mr-2 bg-white rounded-full border border-slate-100 shadow-sm"
         >
           <ChevronLeft size={24} color="#334155" />
@@ -52,7 +55,7 @@ export const AddMedView: React.FC<AddMedViewProps> = ({
       </View>
 
       {/* 内容滚动区 */}
-      <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 40 }}>
         {/* 药物配置器组件 */}
         <ConfigBuilder 
           isSupervisor={appMode === 'SUPERVISOR'} 
@@ -98,6 +101,6 @@ export const AddMedView: React.FC<AddMedViewProps> = ({
           })}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };

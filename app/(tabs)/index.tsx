@@ -2,13 +2,13 @@ import '@/utils/i18n';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { ChevronLeft, ClipboardList } from 'lucide-react-native';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  Alert, LogBox, Text,
-  TouchableOpacity, View
+    Alert, LogBox, Text,
+    TouchableOpacity, View
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 // --- 图标组件 ---
 import { CaregiverIcon, ChartIcon, HistoryIcon, HomeIcon, SettingsIcon, UserIcon } from '@/components/Icons';
@@ -30,6 +30,7 @@ import { PatientListModal, RequestModal } from '@/components/modals/SupervisorMo
 
 // --- 动画组件 ---
 import { AnimatedPage } from '@/components/AnimatedPage';
+import { SwipeBackContainer, SwipeBackContainerRef } from '@/components/SwipeBackContainer';
 
 // --- 逻辑 Hooks ---
 import { useMedications } from '@/hooks/useMedications';
@@ -47,7 +48,9 @@ LogBox.ignoreLogs(['Expo AV has been deprecated', 'No route named "index"']);
 
 export default function App() {
   const { t, i18n } = useTranslation(); 
+  const insets = useSafeAreaInsets(); // 获取安全区域，确保一致性
   const soundRef = useRef<Audio.Sound | null>(null);
+  const swipeBackRef = useRef<SwipeBackContainerRef>(null);
 
   // --- 状态管理 ---
   const [isLoading, setIsLoading] = useState(false); // 改为 false，不显示加载
@@ -353,19 +356,37 @@ export default function App() {
     ]);
   };
 
-  const handleWrapperExitFocus = () => {
-    exitPatientFocus();
-    // 标记正在返回，让详情页立即消失，不显示滑出动画
+  /**
+   * 静默返回（无动画）- 由 SwipeBackContainer 动画完成后调用
+   * 此时手势动画已完成，只需更新状态
+   */
+  const handleSilentExitFocus = () => {
+    // 标记正在返回，防止重复渲染
     setIsReturningFromFocus(true);
-    // 先更新prevTab，确保返回时使用pop动画
+    // 清除患者焦点和切换 tab（React 会批量处理这些状态更新）
+    exitPatientFocus();
     setPrevTab(activeTabState);
     setActiveTabState('HOME');
-    // 重置返回标记（在下一个渲染周期）
-    setTimeout(() => setIsReturningFromFocus(false), 300);
     fetchCloudData(undefined, true);
   };
 
+  /**
+   * 通过按钮触发返回 - 调用 SwipeBackContainer 的动画
+   * 确保按钮和手势返回行为一致
+   */
+  const handleSwipeBack = () => {
+    if (swipeBackRef.current) {
+      // 触发滑出动画，动画完成后会自动调用 handleSilentExitFocus
+      swipeBackRef.current.animateBack();
+    } else {
+      // 降级处理：直接返回
+      handleSilentExitFocus();
+    }
+  };
+
   const handleWrapperEnterFocus = (seniorId: string) => {
+    // 重置返回标记
+    setIsReturningFromFocus(false);
     enterPatientFocus(seniorId);
     // 确保从监护概览进入今日任务时使用push动画
     setPrevTab(activeTabState); // 记录当前tab（HOME）
@@ -389,7 +410,8 @@ export default function App() {
   const handleSeniorListUpdate = (newList: Senior[]) => {
       setSeniorList(newList);
       if (currentSeniorId && !newList.find(s => s.id === currentSeniorId)) {
-          handleWrapperExitFocus();
+          // 当前查看的患者被删除时，直接静默返回（不需要动画）
+          handleSilentExitFocus();
       } else {
           fetchDashboardStatus();
       }
@@ -411,10 +433,32 @@ export default function App() {
   const todaysMeds = getTodaysMeds(currentDateKey);
   const todayRecord = history[currentDateKey] || [];
 
-  // 【静默加载】移除加载状态显示，直接显示内容
-  // if (isLoading) {
-  //   return <View className="flex-1 items-center justify-center bg-bg-warm"><ActivityIndicator size="large" color="#10b981" /><Text className="mt-4 text-slate-400">正在同步数据...</Text></View>;
-  // }
+  // Tab栏固定高度（不使用 SafeAreaView 避免布局抖动）
+  // 注意：这些必须在任何条件返回之前定义，以遵守 React Hooks 规则
+  const TAB_BAR_HEIGHT = 80;
+  const tabBarPaddingBottom = insets.bottom;
+
+  // 专注模式Tab栏组件（用于 SwipeBackContainer 内部）- 使用 useMemo 缓存
+  const FocusModeTabBar = useMemo(() => (
+    <View className="bg-white border-t border-slate-100" style={{ paddingBottom: tabBarPaddingBottom }}>
+      <View className="flex-row justify-around items-center px-4" style={{ height: TAB_BAR_HEIGHT }}>
+        <TouchableOpacity onPress={() => setActiveTab('TASKS')} className="items-center justify-center flex-1"><ClipboardList size={32} color={activeTab === 'TASKS' ? '#3b82f6' : '#cbd5e1'} /><Text style={{ fontSize: 10, color: activeTab === 'TASKS' ? "#3b82f6" : "#cbd5e1", marginTop: 4 }}>{t('home.today_tasks')}</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => setActiveTab('FOCUS_HISTORY')} className="items-center justify-center flex-1"><HistoryIcon size={32} color={activeTab === 'FOCUS_HISTORY' ? "#3b82f6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'FOCUS_HISTORY' ? "#3b82f6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.history')}</Text></TouchableOpacity>
+        <TouchableOpacity onPress={() => setActiveTab('FOCUS_TRENDS')} className="items-center justify-center flex-1"><ChartIcon size={32} color={activeTab === 'FOCUS_TRENDS' ? "#8B5CF6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'FOCUS_TRENDS' ? "#8B5CF6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.trends')}</Text></TouchableOpacity>
+      </View>
+    </View>
+  ), [activeTab, tabBarPaddingBottom, t]);
+
+  // 监护概览页Tab栏组件（用于 previousPage）- 结构与正常渲染完全一致
+  // 在 previousPage 中，HOME 始终是激活状态，所以颜色固定为 #4ADE80
+  const OverviewTabBar = useMemo(() => (
+    <View className="bg-white border-t border-slate-100" style={{ paddingBottom: tabBarPaddingBottom }}>
+      <View className="flex-row justify-around items-center px-4" style={{ height: TAB_BAR_HEIGHT }}>
+        <TouchableOpacity className="items-center justify-center flex-1"><HomeIcon size={32} color="#4ADE80" /><Text style={{ fontSize: 10, color: "#4ADE80", marginTop: 4 }}>{t('tabs.home')}</Text></TouchableOpacity>
+        <TouchableOpacity className="items-center justify-center flex-1"><SettingsIcon size={32} color="#cbd5e1" /><Text style={{ fontSize: 10, color: "#cbd5e1", marginTop: 4 }}>{t('tabs.settings')}</Text></TouchableOpacity>
+      </View>
+    </View>
+  ), [tabBarPaddingBottom, t]);
 
   // --- 视图渲染 ---
   if (appMode === 'LANDING') {
@@ -457,22 +501,79 @@ export default function App() {
     );
   }
 
+  // 专注模式：整页滑动返回（包含 header + content + tab bar）
+  if (appMode === 'SUPERVISOR' && currentSeniorId && focusTabs.includes(activeTab) && !isReturningFromFocus) {
+    return (
+      <View className="flex-1 bg-bg-warm">
+        <AnimatedPage type={mainTabs.includes(prevTab) ? 'push' : 'fade'}>
+          <SwipeBackContainer
+            ref={swipeBackRef}
+            onBack={handleSilentExitFocus}
+            previousPage={
+              <View className="flex-1 bg-bg-warm">
+                <SafeAreaView className="flex-1" edges={['top', 'left', 'right']}>
+                  <View className="flex-row justify-end items-center px-6 py-2"><View className="px-2 py-1 bg-slate-100 rounded-full"><Text className="text-xs font-bold text-slate-300">{t('header.mode_supervisor')}</Text></View></View>
+                  <View className="flex-1 relative">
+                    <View style={{ flex: 1 }}>
+                      <SupervisorHomeScreen currentSeniorId={null} seniorList={seniorList} todaysMeds={[]} todayRecord={[]} dashboardData={dashboardData} onSelectSenior={() => {}} />
+                    </View>
+                  </View>
+                </SafeAreaView>
+                {OverviewTabBar}
+              </View>
+            }
+          >
+            <View className="flex-1">
+              <SafeAreaView className="flex-1" edges={['top', 'left', 'right']}>
+                {/* 返回按钮 */}
+                <View className="flex-row items-center px-4 py-2 border-b border-slate-100/50 bg-bg-warm">
+                  <TouchableOpacity onPress={handleSwipeBack} className="flex-row items-center p-2 rounded-xl bg-white border border-slate-100">
+                    <ChevronLeft size={20} color="#64748b"/>
+                    <Text className="text-slate-600 font-bold ml-1">{t('supervisor.back_to_overview')}</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                {/* 内容区域 */}
+                <View className="flex-1 relative">
+                  {activeTab === 'TASKS' && (
+                    <SupervisorHomeScreen currentSeniorId={currentSeniorId} seniorList={seniorList} todaysMeds={todaysMeds} todayRecord={todayRecord} dashboardData={[]} onSelectSenior={() => {}} />
+                  )}
+                  {activeTab === 'FOCUS_HISTORY' && (
+                    <HistoryScreen history={history} config={config} isSupervisor={true} />
+                  )}
+                  {activeTab === 'FOCUS_TRENDS' && (
+                    <TrendsScreen history={history} onDelete={handleDeleteHistoryItem} />
+                  )}
+                  
+                  {activeTab === 'TASKS' && (
+                    <TouchableOpacity onPress={() => setShowHealthRecordModal(true)} className="absolute bottom-6 right-6 w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg z-50" style={{ elevation: 5 }}><Text className="text-white text-4xl font-light pb-1">+</Text></TouchableOpacity>
+                  )}
+                </View>
+              </SafeAreaView>
+              
+              {/* Tab栏也在 SwipeBackContainer 内部 */}
+              {FocusModeTabBar}
+            </View>
+          </SwipeBackContainer>
+        </AnimatedPage>
+
+        {/* Modals */}
+        <AddPatientModal visible={showAddSeniorModal} onClose={() => setShowAddSeniorModal(false)} onSuccess={(newList) => { setSeniorList(newList); fetchDashboardStatus(); }} />
+        <RequestModal visible={showRequestModal} requests={incomingRequests} onClose={() => setShowRequestModal(false)} onRequestHandled={(id) => handleRequest(id, true)} />
+        <PatientListModal visible={showSeniorListModal} seniorList={seniorList} currentSeniorId={currentSeniorId} isSelectionMode={isSelectingForMedMgmt} onClose={() => setShowSeniorListModal(false)} onSelect={handleSeniorSelect} onListUpdate={handleSeniorListUpdate} />
+        <MoonModal visible={showMoonModal} onClose={() => setShowMoonModal(false)} />
+        <HealthRecordModal visible={showHealthRecordModal} onClose={() => setShowHealthRecordModal(false)} onSave={handleSaveHealthRecord} currentDateKey={currentDateKey} />
+      </View>
+    );
+  }
+
+  // 非专注模式：正常渲染
   return (
     <View className="flex-1 bg-bg-warm">
       <SafeAreaView className="flex-1" edges={['top', 'left', 'right']}>
         {/* 顶部状态栏：模式显示 */}
         {activeTab !== 'SETTINGS' && activeTab !== 'ADD_MED' && activeTab !== 'LANGUAGE' && !currentSeniorId && (
           <View className="flex-row justify-end items-center px-6 py-2"><View className="px-2 py-1 bg-slate-100 rounded-full"><Text className="text-xs font-bold text-slate-300">{appMode === 'USER' ? t('header.mode_patient') : t('header.mode_supervisor')}</Text></View></View>
-        )}
-        
-        {/* 顶部状态栏：返回按钮 (专注模式) */}
-        {currentSeniorId && appMode === 'SUPERVISOR' && activeTab !== 'ADD_MED' && (
-           <View className="flex-row items-center px-4 py-2 border-b border-slate-100/50 bg-bg-warm">
-              <TouchableOpacity onPress={handleWrapperExitFocus} className="flex-row items-center p-2 rounded-xl bg-white border border-slate-100">
-                 <ChevronLeft size={20} color="#64748b"/>
-                 <Text className="text-slate-600 font-bold ml-1">{t('supervisor.back_to_overview')}</Text>
-              </TouchableOpacity>
-           </View>
         )}
 
         <View className="flex-1 relative">
@@ -490,44 +591,11 @@ export default function App() {
             </AnimatedPage>
           )}
           
-          {/* 监护概览页：从今日任务返回时使用pop（从左侧滑入），其他情况使用fade */}
-          {/* 确保从今日任务（TASKS）返回时使用pop动画，与药物管理页面一致 */}
+          {/* 监护概览页 - 无动画，直接渲染以确保与 previousPage 结构完全一致 */}
           {activeTab === 'HOME' && appMode === 'SUPERVISOR' && (
-             <AnimatedPage type={focusTabs.includes(prevTab) ? 'pop' : 'fade'}>
+             <View style={{ flex: 1 }}>
                 <SupervisorHomeScreen currentSeniorId={null} seniorList={seniorList} todaysMeds={[]} todayRecord={[]} dashboardData={dashboardData} onSelectSenior={handleWrapperEnterFocus} />
-             </AnimatedPage>
-          )}
-
-          {/* 专注模式Tab：从概览进入时使用push（从右侧滑入），详情页内tab切换无动画 */}
-          {/* 确保从监护概览（HOME）进入时使用push动画，与药物管理页面一致 */}
-          {activeTab === 'TASKS' && appMode === 'SUPERVISOR' && !isReturningFromFocus && (
-             <AnimatedPage type={mainTabs.includes(prevTab) ? 'push' : getTransitionType('TASKS')}>
-               <SupervisorHomeScreen
-                 currentSeniorId={currentSeniorId}
-                 seniorList={seniorList}
-                 todaysMeds={todaysMeds}
-                 todayRecord={todayRecord}
-                 dashboardData={[]}
-                 onSelectSenior={() => {}}
-               />
-             </AnimatedPage>
-          )}
-          
-          {/* 专注模式历史页：详情页内tab切换，直接切换，无动画 */}
-          {activeTab === 'FOCUS_HISTORY' && !isReturningFromFocus && (
-               <HistoryScreen
-                 history={history}
-                 config={config}
-                 isSupervisor={appMode === 'SUPERVISOR'}
-               />
-          )}
-          
-          {/* 专注模式趋势页：详情页内tab切换，直接切换，无动画 */}
-          {activeTab === 'FOCUS_TRENDS' && !isReturningFromFocus && (
-               <TrendsScreen
-                 history={history}
-                 onDelete={handleDeleteHistoryItem}
-               />
+             </View>
           )}
           
           {/* 主Tab历史页 */}
@@ -537,17 +605,32 @@ export default function App() {
              </AnimatedPage>
           )}
           
-          {/* 设置页：根据来源判断（从主Tab进入用push，从子页返回用pop） */}
+          {/* 设置页 */}
           {activeTab === 'SETTINGS' && (
              <AnimatedPage type={getTransitionType('SETTINGS')}>
                <SettingsView appMode={appMode} setAppMode={setAppMode} setActiveTab={setActiveTab} incomingRequests={incomingRequests} supervisorCode={supervisorCode} setShowRequestModal={setShowRequestModal} setShowAddSeniorModal={setShowAddSeniorModal} setShowSeniorListModal={setShowSeniorListModal} setIsSelectingForMedMgmt={setIsSelectingForMedMgmt} handleLogout={handleLogout} />
              </AnimatedPage>
           )}
           
-          {/* 子页面：使用 push（前进，从右侧滑入） */}
+          {/* 子页面 */}
           {activeTab === 'ADD_MED' && (
              <AnimatedPage type={getTransitionType('ADD_MED')}>
-               <AddMedView appMode={appMode} seniorList={seniorList} currentSeniorId={currentSeniorId} config={config} setActiveTab={setActiveTab} onSaveMed={handleSaveMedWrapper} onRemoveMed={removeMed} />
+               <AddMedView 
+                 appMode={appMode} 
+                 seniorList={seniorList} 
+                 currentSeniorId={currentSeniorId} 
+                 config={config} 
+                 setActiveTab={setActiveTab} 
+                 onSaveMed={handleSaveMedWrapper} 
+                 onRemoveMed={removeMed}
+                 onBack={() => {
+                   // 从药物管理返回时，如果是监督者模式且设置了患者ID，需要清除
+                   if (appMode === 'SUPERVISOR' && currentSeniorId) {
+                     exitPatientFocus();
+                   }
+                   setActiveTab('SETTINGS');
+                 }}
+               />
              </AnimatedPage>
           )}
           
@@ -557,37 +640,33 @@ export default function App() {
              </AnimatedPage>
           )}
           
-          {((activeTab === 'HOME' && appMode === 'USER') || (activeTab === 'TASKS' && appMode === 'SUPERVISOR')) && (
+          {activeTab === 'HOME' && appMode === 'USER' && (
             <TouchableOpacity onPress={() => setShowHealthRecordModal(true)} className="absolute bottom-6 right-6 w-16 h-16 bg-blue-600 rounded-full items-center justify-center shadow-lg z-50" style={{ elevation: 5 }}><Text className="text-white text-4xl font-light pb-1">+</Text></TouchableOpacity>
           )}
         </View>
       </SafeAreaView>
 
-      <View className="bg-white border-t border-slate-100">
-          <SafeAreaView edges={['bottom']} className="flex-row justify-around items-center h-20 px-4">
-              {appMode === 'USER' && (
-                <>
-                  <TouchableOpacity onPress={() => setActiveTab('TRENDS')} style={{ width: 64, height: 64 }} className="items-center justify-center"><ChartIcon size={32} color={activeTab === 'TRENDS' ? "#8B5CF6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'TRENDS' ? "#8B5CF6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.trends')}</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('HOME')} style={{ width: 64, height: 64 }} className="items-center justify-center"><HomeIcon size={32} color={activeTab === 'HOME' ? '#4ADE80' : '#cbd5e1'} /><Text style={{ fontSize: 10, color: activeTab === 'HOME' ? "#4ADE80" : "#cbd5e1", marginTop: 4 }}>{t('tabs.home')}</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('HISTORY')} style={{ width: 64, height: 64 }} className="items-center justify-center"><HistoryIcon size={32} color={activeTab === 'HISTORY' ? "#3b82f6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'HISTORY' ? "#3b82f6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.history')}</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('SETTINGS')} style={{ width: 64, height: 64 }} className="items-center justify-center"><SettingsIcon size={32} color={activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1", marginTop: 4 }}>{t('tabs.settings')}</Text></TouchableOpacity>
-                </>
-              )}
-              {appMode === 'SUPERVISOR' && !currentSeniorId && (
-                <>
-                  <TouchableOpacity onPress={() => setActiveTab('HOME')} className="items-center justify-center flex-1"><HomeIcon size={32} color={activeTab === 'HOME' ? '#4ADE80' : '#cbd5e1'} /><Text style={{ fontSize: 10, color: activeTab === 'HOME' ? "#4ADE80" : "#cbd5e1", marginTop: 4 }}>{t('tabs.home')}</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('SETTINGS')} className="items-center justify-center flex-1"><SettingsIcon size={32} color={activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1", marginTop: 4 }}>{t('tabs.settings')}</Text></TouchableOpacity>
-                </>
-              )}
-              {appMode === 'SUPERVISOR' && currentSeniorId && (
-                <>
-                  <TouchableOpacity onPress={() => setActiveTab('TASKS')} className="items-center justify-center flex-1"><ClipboardList size={32} color={activeTab === 'TASKS' ? '#3b82f6' : '#cbd5e1'} /><Text style={{ fontSize: 10, color: activeTab === 'TASKS' ? "#3b82f6" : "#cbd5e1", marginTop: 4 }}>{t('home.today_tasks')}</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('FOCUS_HISTORY')} className="items-center justify-center flex-1"><HistoryIcon size={32} color={activeTab === 'FOCUS_HISTORY' ? "#3b82f6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'FOCUS_HISTORY' ? "#3b82f6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.history')}</Text></TouchableOpacity>
-                  <TouchableOpacity onPress={() => setActiveTab('FOCUS_TRENDS')} className="items-center justify-center flex-1"><ChartIcon size={32} color={activeTab === 'FOCUS_TRENDS' ? "#8B5CF6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'FOCUS_TRENDS' ? "#8B5CF6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.trends')}</Text></TouchableOpacity>
-                </>
-              )}
-          </SafeAreaView>
-      </View>
+      {/* 子页面（ADD_MED, LANGUAGE）时隐藏 Tab 栏 */}
+      {activeTab !== 'ADD_MED' && activeTab !== 'LANGUAGE' && (
+        appMode === 'USER' ? (
+          <View className="bg-white border-t border-slate-100" style={{ paddingBottom: tabBarPaddingBottom }}>
+            <View className="flex-row justify-around items-center px-4" style={{ height: TAB_BAR_HEIGHT }}>
+              <TouchableOpacity onPress={() => setActiveTab('TRENDS')} style={{ width: 64, height: 64 }} className="items-center justify-center"><ChartIcon size={32} color={activeTab === 'TRENDS' ? "#8B5CF6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'TRENDS' ? "#8B5CF6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.trends')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('HOME')} style={{ width: 64, height: 64 }} className="items-center justify-center"><HomeIcon size={32} color={activeTab === 'HOME' ? '#4ADE80' : '#cbd5e1'} /><Text style={{ fontSize: 10, color: activeTab === 'HOME' ? "#4ADE80" : "#cbd5e1", marginTop: 4 }}>{t('tabs.home')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('HISTORY')} style={{ width: 64, height: 64 }} className="items-center justify-center"><HistoryIcon size={32} color={activeTab === 'HISTORY' ? "#3b82f6" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'HISTORY' ? "#3b82f6" : "#cbd5e1", marginTop: 4 }}>{t('tabs.history')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('SETTINGS')} style={{ width: 64, height: 64 }} className="items-center justify-center"><SettingsIcon size={32} color={activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1", marginTop: 4 }}>{t('tabs.settings')}</Text></TouchableOpacity>
+            </View>
+          </View>
+        ) : appMode === 'SUPERVISOR' && !currentSeniorId ? (
+          // 监督概览页 Tab 栏 - 与 OverviewTabBar 结构完全一致
+          <View className="bg-white border-t border-slate-100" style={{ paddingBottom: tabBarPaddingBottom }}>
+            <View className="flex-row justify-around items-center px-4" style={{ height: TAB_BAR_HEIGHT }}>
+              <TouchableOpacity onPress={() => setActiveTab('HOME')} className="items-center justify-center flex-1"><HomeIcon size={32} color={activeTab === 'HOME' ? '#4ADE80' : '#cbd5e1'} /><Text style={{ fontSize: 10, color: activeTab === 'HOME' ? "#4ADE80" : "#cbd5e1", marginTop: 4 }}>{t('tabs.home')}</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setActiveTab('SETTINGS')} className="items-center justify-center flex-1"><SettingsIcon size={32} color={activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1"} /><Text style={{ fontSize: 10, color: activeTab === 'SETTINGS' ? "#f97316" : "#cbd5e1", marginTop: 4 }}>{t('tabs.settings')}</Text></TouchableOpacity>
+            </View>
+          </View>
+        ) : null
+      )}
 
       <AddPatientModal visible={showAddSeniorModal} onClose={() => setShowAddSeniorModal(false)} onSuccess={(newList) => { setSeniorList(newList); fetchDashboardStatus(); }} />
       <RequestModal visible={showRequestModal} requests={incomingRequests} onClose={() => setShowRequestModal(false)} onRequestHandled={(id) => handleRequest(id, true)} />

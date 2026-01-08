@@ -2,6 +2,7 @@ import { Check, ChevronLeft } from 'lucide-react-native';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SettingsGroup } from '@/components/SettingsShared';
 import { Tab } from '@/types';
@@ -21,7 +22,7 @@ export const LanguageView: React.FC<LanguageViewProps> = ({ setActiveTab }) => {
   };
 
   return (
-    <View className="flex-1 bg-bg-warm">
+    <SafeAreaView className="flex-1 bg-bg-warm" edges={['bottom']}>
       {/* 顶部导航栏 */}
       <View className="flex-row items-center px-4 py-3 bg-bg-warm border-b border-slate-100/50">
         <TouchableOpacity 
@@ -52,6 +53,6 @@ export const LanguageView: React.FC<LanguageViewProps> = ({ setActiveTab }) => {
           </TouchableOpacity>
         </SettingsGroup>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };

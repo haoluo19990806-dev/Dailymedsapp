@@ -14,7 +14,7 @@ export function useMedications() {
       const date = new Date(targetDateStr);
       // 重要：JavaScript getDay() 返回 0-6 (0=Sunday, ..., 6=Saturday)
       // 转换为 1-7 (1=Monday, ..., 7=Sunday) 以匹配 med.days 数组
-      let dayNum = date.getDay();
+      let dayNum = date.getDay(); 
       if (dayNum === 0) dayNum = 7; // Sunday (0) -> 7, 不是 1！
       return med.days.includes(dayNum);
     } else if (med.frequencyType === FrequencyType.INTERVAL && med.startDate && med.interval) {
