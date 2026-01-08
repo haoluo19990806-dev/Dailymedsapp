@@ -25,18 +25,18 @@ export default function RootLayout() {
   }, []);
 
   // 包裹整个应用，确保所有手势都能正常工作
-  return (
+    return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#10b981" />
-        </View>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#10b981" />
+      </View>
       ) : !session ? (
         <LoginScreen />
       ) : (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" /> 
-        </Stack>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" /> 
+    </Stack>
       )}
     </GestureHandlerRootView>
   );
