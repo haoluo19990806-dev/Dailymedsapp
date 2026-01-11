@@ -25,6 +25,7 @@ const resources = {
       // --- 主页 (Home) ---
       "home.select_patient_tip": "请先在设置页选择一位患者",
       "home.today_tasks": "今日任务",
+      "home.today_checkin": "今日打卡",
       "home.completed": "已完成",
       "home.pending": "待完成",
       "home.no_tasks": "今日暂无任务",
@@ -62,6 +63,7 @@ const resources = {
 
       // --- 药物管理 ---
       "med_mgmt.title": "药物管理",
+      "med_mgmt.managing": "{{name}}的药物",
       "med_mgmt.section_added": "已添加药物",
       "med_mgmt.patient_meds": "该患者的药物",
       "med_mgmt.empty": "暂无药物",
@@ -124,6 +126,7 @@ const resources = {
       "record.confirm": "确定",
 
       // --- 历史页 (History) ---
+      "history.title": "历史记录",
       "history.my_title": "我的历史记录",
       "history.patient_title": "患者历史记录",
       "history.details": "详情",
@@ -203,6 +206,7 @@ const resources = {
 
       "home.select_patient_tip": "Please select a patient in Settings first",
       "home.today_tasks": "Tasks",
+      "home.today_checkin": "Daily Check-in",
       "home.completed": "Done",
       "home.pending": "Pending",
       "home.no_tasks": "No tasks for today",
@@ -238,6 +242,7 @@ const resources = {
       "settings.click_to_view": "Tap to view",
 
       "med_mgmt.title": "Medications",
+      "med_mgmt.managing": "{{name}}'s Meds",
       "med_mgmt.section_added": "Added Meds",
       "med_mgmt.patient_meds": "Patient's Meds",
       "med_mgmt.empty": "No Medications",
@@ -296,6 +301,7 @@ const resources = {
       "record.pm": "PM",
       "record.confirm": "Confirm",
 
+      "history.title": "History",
       "history.my_title": "My History",
       "history.patient_title": "Patient History",
       "history.details": "Details",

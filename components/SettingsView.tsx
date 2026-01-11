@@ -42,7 +42,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   return (
     <ScrollView className="flex-1 w-full px-4 pt-4 bg-bg-warm" contentContainerStyle={{ paddingBottom: 100 }}>
-      <Text className="text-3xl font-bold text-slate-800 mb-6 px-2">{t('settings.title')}</Text>
 
       {/* 消息通知 - 仅患者模式 */}
       {appMode === 'USER' && incomingRequests.length > 0 && (

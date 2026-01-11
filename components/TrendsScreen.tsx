@@ -524,7 +524,6 @@ export const TrendsScreen: React.FC<TrendsScreenProps> = ({ history, onDelete })
   return (
     <View className="flex-1 bg-slate-50">
       <ScrollView className="flex-1 px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
-        <Text className="text-2xl font-bold text-slate-800 mb-6">{t('trends.title')}</Text>
         {Object.keys(healthData).length === 0 ? (
            <View className="items-center justify-center py-20">
              <Text className="text-slate-400 text-lg">{t('trends.no_data')}</Text>

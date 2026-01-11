@@ -39,10 +39,8 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
   if (!currentSeniorId) {
     return (
       <ScrollView className="flex-1 w-full px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
-        <View className="mb-6 px-2">
-          <Text className="text-3xl font-bold text-slate-800 mb-1">{t('supervisor.overview')}</Text>
-          <Text className="text-base font-bold text-slate-400">{t('supervisor.all_patients_progress')}</Text>
-        </View>
+        {/* 副标题 */}
+        <Text className="text-base font-bold text-slate-400 mb-4 px-2">{t('supervisor.all_patients_progress')}</Text>
 
         {dashboardData.length === 0 ? (
           <View className="items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 border-dashed">
@@ -88,18 +86,11 @@ export const SupervisorHomeScreen: React.FC<SupervisorHomeScreenProps> = ({
   // ======================================================
   // 🔵 模式二：任务详情 (Tasks Detail) - 选中人后显示
   // ======================================================
-  // 此时只显示“任务列表”，历史和趋势由 index.tsx 的底部 Tab 接管
-  const currentSenior = seniorList.find(s => s.id === currentSeniorId);
-
+  // 此时只显示"任务列表"，历史和趋势由 index.tsx 的底部 Tab 接管
   return (
     <ScrollView className="flex-1 w-full px-4 pt-4" contentContainerStyle={{ paddingBottom: 100 }}>
-      {/* 这里的标题栏也可以简化，因为 index.tsx 会有统一的 Header */}
-      <View className="mb-6 px-2">
-         {currentSenior && (
-           <Text className="text-3xl font-bold text-slate-800 mb-1">{currentSenior.note}</Text>
-         )}
-         <Text className="text-base font-bold text-slate-400">{t('home.today_tasks')}</Text>
-      </View>
+      {/* 副标题 */}
+      <Text className="text-base font-bold text-slate-400 mb-4 px-2">{t('home.today_tasks')}</Text>
 
       {todaysMeds.length === 0 ? (
         <View className="items-center justify-center py-20 bg-white rounded-3xl border border-slate-100 border-dashed">

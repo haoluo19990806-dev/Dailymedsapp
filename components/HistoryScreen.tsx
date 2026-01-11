@@ -54,10 +54,6 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
 
   return (
     <View className="flex-1 w-full bg-white pt-4">
-      <Text className="text-3xl font-bold text-slate-700 mb-6 px-6">
-        {isSupervisor ? t('history.patient_title') : t('history.my_title')}
-      </Text>
-
       <View className="h-28 mb-2">
         <FlatList
           data={dates}
