@@ -99,7 +99,7 @@ export const syncQueue = {
       for (const task of sortedQueue) {
         try {
           if (task.type === 'ADD') {
-            // 尝试同步到云端
+            // 尝试同步到云端（传递目标用户ID）
             const result = await historyService.addEvent(task.event, task.targetUserId);
             if (result) {
               // 同步成功，移除任务
@@ -121,9 +121,9 @@ export const syncQueue = {
               }
             }
           } else if (task.type === 'DELETE') {
-            // 删除操作
+            // 删除操作（传递目标用户ID）
             if (task.event.id && !task.event.id.startsWith('temp-')) {
-              await historyService.deleteEvent(task.event.id);
+              await historyService.deleteEvent(task.event.id, task.targetUserId);
               await syncQueue.removeTask(task.id);
             } else {
               // temp-id 不需要同步删除

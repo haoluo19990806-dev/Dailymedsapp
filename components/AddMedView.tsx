@@ -47,19 +47,19 @@ export const AddMedView: React.FC<AddMedViewProps> = ({
       <View className="bg-bg-warm border-b border-slate-100/50" style={{ paddingTop: insets.top }}>
         <View className="flex-row items-center px-4" style={{ height: 56 }}>
           {/* 左侧返回按钮 - zIndex确保可点击 */}
-          <TouchableOpacity 
+        <TouchableOpacity 
             onPress={() => onBack ? onBack() : setActiveTab('SETTINGS')} 
             className="items-center justify-center bg-white rounded-full border border-slate-100 shadow-sm"
             style={{ width: 44, height: 44, zIndex: 10 }}
             activeOpacity={0.7}
-          >
-            <ChevronLeft size={24} color="#334155" />
-          </TouchableOpacity>
+        >
+          <ChevronLeft size={24} color="#334155" />
+        </TouchableOpacity>
           {/* 居中标题 - pointerEvents none 避免阻挡点击 */}
           <View className="absolute left-0 right-0" style={{ pointerEvents: 'none' }}>
             <Text className="text-xl font-bold text-slate-800 text-center" style={{ fontSize: 20 }}>
-              {title}
-            </Text>
+          {title}
+        </Text>
           </View>
           {/* 右侧占位保持对称 */}
           <View style={{ width: 44 }} />

@@ -133,6 +133,9 @@ const resources = {
       "history.total_records": "共 {{count}} 条记录",
       "history.month_suffix": "月",
       "history.week_prefix": "", // 🔥 [修改] 设为空，因为 label 本身已经是 "周X"
+      "history.important_records": "重要记录",
+      "history.no_important_records": "暂无重要记录",
+      "history.no_important_records_hint": "在历史记录中向左滑动，点击星星标记重要记录",
 
       // --- 日志列表 (LogList) ---
       "log.patient_took": "患者服用了",
@@ -150,7 +153,7 @@ const resources = {
       "alert.cancel": "取消",
       "alert.remove": "移除",
       "alert.confirm_remove_patient": "您确定要移除这位患者吗？",
-      "alert.confirm_delete_record": "您确定要删除这条记录吗？",
+      "alert.confirm_delete_record": "确定要删除这条记录吗？此操作不可撤销。",
       "alert.record_saved": "记录成功",
       "alert.body_data_saved": "身体数据已保存",
       "alert.tip": "提示",
@@ -159,6 +162,9 @@ const resources = {
       "alert.enter_code": "请输入监督码",
       "alert.add_success": "添加成功",
       "alert.added_patient": "已添加：{{name}}",
+      "alert.error": "错误",
+      "alert.sync_failed": "同步失败，请重试",
+      "alert.delete_failed": "删除失败，请重试",
 
       // --- 模态框 ---
       "modal.add_patient_title": "添加患者",
@@ -308,6 +314,9 @@ const resources = {
       "history.total_records": "{{count}} records",
       "history.month_suffix": "", 
       "history.week_prefix": "",
+      "history.important_records": "Important Records",
+      "history.no_important_records": "No important records",
+      "history.no_important_records_hint": "Swipe left on a record and tap the star to mark it as important",
 
       "log.patient_took": "Patient took",
       "log.you_took": "Took",
@@ -323,7 +332,7 @@ const resources = {
       "alert.cancel": "Cancel",
       "alert.remove": "Remove",
       "alert.confirm_remove_patient": "Remove this patient?",
-      "alert.confirm_delete_record": "Delete this record?",
+      "alert.confirm_delete_record": "Are you sure you want to delete this record? This action cannot be undone.",
       "alert.record_saved": "Saved",
       "alert.body_data_saved": "Health data saved",
       "alert.tip": "Tip",
@@ -332,6 +341,9 @@ const resources = {
       "alert.enter_code": "Enter supervisor code",
       "alert.add_success": "Success",
       "alert.added_patient": "Added: {{name}}",
+      "alert.error": "Error",
+      "alert.sync_failed": "Sync failed, please try again",
+      "alert.delete_failed": "Delete failed, please try again",
 
       "modal.add_patient_title": "Add Patient",
       "modal.code_label": "Supervisor Code",

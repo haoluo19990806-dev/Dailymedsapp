@@ -16,6 +16,7 @@ import { CaregiverIcon, ChartIcon, HistoryIcon, HomeIcon, SettingsIcon, TrashIco
 // --- 页面与功能组件 ---
 import { HealthRecordModal } from '@/components/HealthRecordModal';
 import { HistoryScreen } from '@/components/HistoryScreen';
+import { ImportantRecordsScreen } from '@/components/ImportantRecordsScreen';
 import { LanguageView } from '@/components/LanguageView';
 import { SettingsView } from '@/components/SettingsView';
 import { SupervisorHomeScreen } from '@/components/SupervisorHomeScreen';
@@ -55,6 +56,7 @@ export default function App() {
   const insets = useSafeAreaInsets(); // 获取安全区域，确保一致性
   const soundRef = useRef<Audio.Sound | null>(null);
   const swipeBackRef = useRef<SwipeBackContainerRef>(null);
+  const importantRecordsSwipeBackRef = useRef<SwipeBackContainerRef>(null);
 
   // --- 状态管理 ---
   const [isLoading, setIsLoading] = useState(false); // 改为 false，不显示加载
@@ -63,6 +65,7 @@ export default function App() {
   const [prevTab, setPrevTab] = useState<Tab>('HOME'); // 用于判断导航方向
   const [isReturningFromFocus, setIsReturningFromFocus] = useState(false); // 标记是否正在从专注模式返回
   const [isReturningFromAddMed, setIsReturningFromAddMed] = useState(false); // 标记是否正在从药物管理页面返回
+  const [isReturningFromImportant, setIsReturningFromImportant] = useState(false); // 标记是否正在从重要记录页面返回
   const [currentDateKey, setCurrentDateKey] = useState<string>("");
   const [currentDayOfWeek, setCurrentDayOfWeek] = useState<number>(1);
   const [supervisorCode, setSupervisorCode] = useState<string>(t('app.loading'));
@@ -74,7 +77,7 @@ export default function App() {
   const focusTabs: Tab[] = ['TASKS', 'FOCUS_HISTORY', 'FOCUS_TRENDS'];
   
   // 子页面列表（用于判断是否为前进/后退）
-  const subPages: Tab[] = ['ADD_MED', 'LANGUAGE'];
+  const subPages: Tab[] = ['ADD_MED', 'LANGUAGE', 'IMPORTANT_RECORDS'];
 
   // 智能Tab切换函数（追踪导航方向）
   const setActiveTab = (newTab: Tab) => {
@@ -187,8 +190,12 @@ export default function App() {
         if (savedSeniors) setSeniorList(savedSeniors);
 
         // 【静默加载】先加载本地历史数据（立即显示，不等待网络）
-        const localHistory = await offlineStorage.loadHistory();
-        setHistory(localHistory);
+        // 获取当前用户ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const localHistory = await offlineStorage.loadHistory(user.id);
+          setHistory(localHistory);
+        }
 
         // 【静默加载】后台同步云端数据（不阻塞UI）
         setTimeout(() => {
@@ -249,7 +256,7 @@ export default function App() {
     // 静默获取监督码（后台执行）
     Promise.resolve(supabase.from('profiles').select('invite_code').eq('id', user.id).single())
       .then(({ data: profile }) => {
-        if (profile?.invite_code) setSupervisorCode(profile.invite_code);
+    if (profile?.invite_code) setSupervisorCode(profile.invite_code);
       })
       .catch(() => {}); // 静默失败，不显示错误
     
@@ -268,8 +275,8 @@ export default function App() {
     
     // 【静默加载】后台同步数据，不阻塞UI
     try {
-        // 先加载本地数据（立即显示）
-        const localHistory = await offlineStorage.loadHistory();
+        // 先加载本地数据（立即显示，按用户隔离）
+        const localHistory = await offlineStorage.loadHistory(fetchTargetId);
         setHistory(localHistory);
         
         // 后台同步云端数据（静默执行）
@@ -292,8 +299,10 @@ export default function App() {
     
     if (existingEvent) {
       // 删除操作（立即更新UI，后台同步）
-      if (existingEvent.id) {
-        await historyService.deleteEvent(existingEvent.id);
+      // 获取当前用户ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (existingEvent.id && user) {
+        await historyService.deleteEvent(existingEvent.id, user.id);
       }
       const newRecord = todayRecord.filter(e => e.id !== existingEvent.id);
       setHistory(prev => ({ ...prev, [currentDateKey]: newRecord }));
@@ -311,7 +320,10 @@ export default function App() {
       };
       
       // 【离线优先】立即保存本地，后台同步云端
-      const dbRecord = await historyService.addEvent(newEventBase);
+      // 获取当前用户ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const dbRecord = await historyService.addEvent(newEventBase, user.id);
       if (dbRecord) {
         const newEvent = { ...newEventBase, id: dbRecord.id || newEventBase.id };
         const newRecord = [...todayRecord, newEvent];
@@ -364,6 +376,126 @@ export default function App() {
           }
       }}
     ]);
+  };
+
+  // --- 历史记录页面：重要标记和删除功能 ---
+  const handleToggleImportant = async (eventId: string, isImportant: boolean) => {
+    // 确定目标用户ID
+    let targetUserId: string | undefined = undefined;
+    if (appMode === 'SUPERVISOR' && currentSeniorId) {
+      targetUserId = currentSeniorId;
+    } else if (appMode === 'USER') {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) targetUserId = user.id;
+    }
+
+    // 乐观更新：立即更新本地状态
+    setHistory(prevHistory => {
+      const updatedHistory = { ...prevHistory };
+      for (const dateKey in updatedHistory) {
+        const index = updatedHistory[dateKey].findIndex(e => e.id === eventId);
+        if (index >= 0) {
+          updatedHistory[dateKey] = [...updatedHistory[dateKey]];
+          updatedHistory[dateKey][index] = {
+            ...updatedHistory[dateKey][index],
+            isImportant
+          };
+          break;
+        }
+      }
+      return updatedHistory;
+    });
+
+    // 同步到后端（传递目标用户ID）
+    const success = await historyService.toggleImportant(eventId, isImportant, targetUserId);
+    if (!success) {
+      // 同步失败，回滚本地状态（重新从云端获取）
+      Alert.alert(t('alert.error') || '错误', t('alert.sync_failed') || '同步失败，请重试');
+      fetchCloudData(targetUserId, false);
+    }
+  };
+
+  const handleDeleteEventFromHistory = async (eventId: string) => {
+    // 确定目标用户ID
+    let targetUserId: string | undefined = undefined;
+    if (appMode === 'SUPERVISOR' && currentSeniorId) {
+      targetUserId = currentSeniorId;
+    } else if (appMode === 'USER') {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) targetUserId = user.id;
+    }
+
+    // 乐观更新：立即从本地状态中删除
+    setHistory(prevHistory => {
+      const updatedHistory = { ...prevHistory };
+      for (const dateKey in updatedHistory) {
+        const index = updatedHistory[dateKey].findIndex(e => e.id === eventId);
+        if (index >= 0) {
+          updatedHistory[dateKey] = updatedHistory[dateKey].filter(e => e.id !== eventId);
+          if (updatedHistory[dateKey].length === 0) {
+            delete updatedHistory[dateKey];
+          }
+          break;
+        }
+      }
+      return updatedHistory;
+    });
+
+    // 同步到后端（传递目标用户ID）
+    try {
+      await historyService.deleteEvent(eventId, targetUserId);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (e) {
+      // 同步失败，回滚本地状态（重新从云端获取）
+      Alert.alert(t('alert.error') || '错误', t('alert.delete_failed') || '删除失败，请重试');
+      fetchCloudData(targetUserId, false);
+    }
+  };
+
+  const handleHistoryUpdate = (updatedHistory: HistoryRecord) => {
+    setHistory(updatedHistory);
+  };
+
+  // 导航到重要记录页面
+  const handleNavigateToImportant = () => {
+    setIsReturningFromImportant(false);
+    setActiveTab('IMPORTANT_RECORDS');
+  };
+
+  // 从重要记录页面返回（通过滑动手势，静默返回）
+  const handleImportantSilentBack = () => {
+    setIsReturningFromImportant(true);
+    setActiveTab('HISTORY');
+  };
+
+  // 从重要记录页面返回（通过按钮点击，触发滑动动画）
+  const handleImportantSwipeBack = () => {
+    if (importantRecordsSwipeBackRef.current) {
+      importantRecordsSwipeBackRef.current.animateBack();
+    }
+  };
+
+  // --- 监督者专注模式：重要记录导航 ---
+  const focusImportantSwipeBackRef = useRef<SwipeBackContainerRef>(null);
+  const [isReturningFromFocusImportant, setIsReturningFromFocusImportant] = useState(false);
+  
+  // 监督者专注模式：导航到重要记录页面
+  const handleNavigateToFocusImportant = () => {
+    setIsReturningFromFocusImportant(false);
+    setActiveTab('FOCUS_IMPORTANT_RECORDS');
+  };
+
+  // 监督者专注模式：从重要记录页面返回（通过滑动手势，静默返回）
+  const handleFocusImportantSilentBack = () => {
+    setIsReturningFromFocusImportant(true);
+    setActiveTab('FOCUS_HISTORY');
+  };
+
+  // 监督者专注模式：从重要记录页面返回（通过按钮点击，触发滑动动画）
+  const handleFocusImportantSwipeBack = () => {
+    if (focusImportantSwipeBackRef.current) {
+      focusImportantSwipeBackRef.current.animateBack();
+    }
   };
 
   /**
@@ -566,6 +698,62 @@ export default function App() {
     );
   }
 
+  // 监督者专注模式：重要记录页面（独立渲染，支持滑动返回）
+  if (appMode === 'SUPERVISOR' && currentSeniorId && activeTab === 'FOCUS_IMPORTANT_RECORDS') {
+    return (
+      <View className="flex-1 bg-bg-warm">
+        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+        <AnimatedPage type={isReturningFromFocusImportant ? 'fade' : 'push'}>
+          <SwipeBackContainer
+            ref={focusImportantSwipeBackRef}
+            onBack={handleFocusImportantSilentBack}
+            previousPage={
+              <View className="flex-1 bg-bg-warm">
+                {/* 历史页导航栏 - 与专注模式历史页一致 */}
+                <View className="bg-bg-warm border-b border-slate-100/50" style={{ paddingTop: insets.top }}>
+                  <View className="flex-row items-center px-4" style={{ height: 56 }}>
+                    <TouchableOpacity 
+                      className="items-center justify-center bg-white rounded-full border border-slate-100 shadow-sm"
+                      style={{ width: 44, height: 44, zIndex: 10 }}
+                      activeOpacity={0.7}
+                    >
+                      <ChevronLeft size={24} color="#334155" />
+                    </TouchableOpacity>
+                    <View className="absolute left-0 right-0" style={{ pointerEvents: 'none' }}>
+                      <Text className="text-xl font-bold text-slate-800 text-center" style={{ fontSize: 20 }}>
+                        {t('history.title')}
+                      </Text>
+                    </View>
+                    <View style={{ width: 44 }} />
+                  </View>
+                </View>
+                <SafeAreaView className="flex-1" edges={['left', 'right']}>
+                  <View className="flex-1">
+                    <HistoryScreen 
+                      history={history} 
+                      config={config} 
+                      isSupervisor={true}
+                    />
+                  </View>
+                </SafeAreaView>
+                {FocusModeTabBar}
+              </View>
+            }
+          >
+            <ImportantRecordsScreen
+              config={config}
+              isSupervisor={true}
+              onBack={handleFocusImportantSwipeBack}
+              onToggleImportant={handleToggleImportant}
+              onDeleteEvent={handleDeleteEventFromHistory}
+              targetUserId={currentSeniorId}
+            />
+          </SwipeBackContainer>
+        </AnimatedPage>
+      </View>
+    );
+  }
+
   // 专注模式：整页滑动返回（包含 header + content + tab bar）
   if (appMode === 'SUPERVISOR' && currentSeniorId && focusTabs.includes(activeTab) && !isReturningFromFocus) {
     return (
@@ -627,7 +815,15 @@ export default function App() {
                     <SupervisorHomeScreen currentSeniorId={currentSeniorId} seniorList={seniorList} todaysMeds={todaysMeds} todayRecord={todayRecord} dashboardData={[]} onSelectSenior={() => {}} />
                   )}
                   {activeTab === 'FOCUS_HISTORY' && (
-                    <HistoryScreen history={history} config={config} isSupervisor={true} />
+                    <HistoryScreen 
+                      history={history} 
+                      config={config} 
+                      isSupervisor={true}
+                      onToggleImportant={handleToggleImportant}
+                      onDeleteEvent={handleDeleteEventFromHistory}
+                      onHistoryUpdate={handleHistoryUpdate}
+                      onNavigateToImportant={handleNavigateToFocusImportant}
+                    />
                   )}
                   {activeTab === 'FOCUS_TRENDS' && (
                     <TrendsScreen history={history} onDelete={handleDeleteHistoryItem} />
@@ -772,6 +968,68 @@ export default function App() {
     );
   }
 
+  // 重要记录页面：独立渲染，支持滑动返回
+  if (activeTab === 'IMPORTANT_RECORDS') {
+    return (
+      <View className="flex-1 bg-bg-warm">
+        <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
+        <AnimatedPage type={isReturningFromImportant ? 'fade' : 'push'}>
+          <SwipeBackContainer
+            ref={importantRecordsSwipeBackRef}
+            onBack={handleImportantSilentBack}
+            previousPage={
+              <View className="flex-1 bg-bg-warm">
+                {/* 历史页导航栏 - 与正常渲染完全一致 */}
+                <View className="bg-bg-warm border-b border-slate-100/50" style={{ paddingTop: insets.top }}>
+                  <View className="flex-row items-center justify-center px-4" style={{ height: 56 }}>
+                    <Text className="text-xl font-bold text-slate-800" style={{ fontSize: 20 }}>
+                      {appMode === 'SUPERVISOR' ? t('history.patient_title') : t('history.my_title')}
+                    </Text>
+                  </View>
+                </View>
+                <SafeAreaView className="flex-1" edges={['left', 'right']}>
+                  <View className="flex-1">
+                    <HistoryScreen 
+                      history={history} 
+                      config={config} 
+                      isSupervisor={appMode === 'SUPERVISOR'}
+                    />
+                  </View>
+                </SafeAreaView>
+                {/* Tab 栏 */}
+                {appMode === 'USER' ? (
+                  <AnimatedTabBar
+                    tabs={userModeTabs}
+                    activeTab="HISTORY"
+                    onTabPress={() => {}}
+                    height={TAB_BAR_CONTENT_HEIGHT}
+                    paddingBottom={insets.bottom}
+                  />
+                ) : (
+                  <AnimatedTabBar
+                    tabs={supervisorOverviewTabs}
+                    activeTab="HISTORY"
+                    onTabPress={() => {}}
+                    height={TAB_BAR_CONTENT_HEIGHT}
+                    paddingBottom={insets.bottom}
+                  />
+                )}
+              </View>
+            }
+          >
+            <ImportantRecordsScreen
+              config={config}
+              isSupervisor={appMode === 'SUPERVISOR'}
+              onBack={handleImportantSwipeBack}
+              onToggleImportant={handleToggleImportant}
+              onDeleteEvent={handleDeleteEventFromHistory}
+            />
+          </SwipeBackContainer>
+        </AnimatedPage>
+      </View>
+    );
+  }
+
   // 非专注模式：正常渲染
   // 获取当前页面标题
   const getPageTitle = () => {
@@ -784,11 +1042,11 @@ export default function App() {
   };
   
   const pageTitle = getPageTitle();
-  // ADD_MED 已在前面提前返回，这里只需检查 LANGUAGE
+  // ADD_MED 和 IMPORTANT_RECORDS 已在前面提前返回，这里只需检查 LANGUAGE
   const showHeader = activeTab !== 'LANGUAGE' && !currentSeniorId;
   // LANGUAGE 页面有自己的导航栏，不需要外层处理顶部安全区域
   const hasOwnHeader = activeTab === 'LANGUAGE';
-  
+
   return (
     <View className="flex-1 bg-bg-warm">
       <StatusBar barStyle="dark-content" translucent backgroundColor="transparent" />
@@ -801,8 +1059,8 @@ export default function App() {
               <Text className="text-xl font-bold text-slate-800" style={{ fontSize: 20 }}>{pageTitle}</Text>
             )}
           </View>
-        </View>
-      )}
+           </View>
+        )}
       <SafeAreaView className="flex-1" edges={hasOwnHeader ? ['left', 'right'] : (showHeader ? ['left', 'right'] : ['top', 'left', 'right'])}>
 
         <View className="flex-1 relative">
@@ -826,11 +1084,19 @@ export default function App() {
                 <SupervisorHomeScreen currentSeniorId={null} seniorList={seniorList} todaysMeds={[]} todayRecord={[]} dashboardData={dashboardData} onSelectSenior={handleWrapperEnterFocus} />
              </View>
           )}
-          
+
           {/* 主Tab历史页 */}
           {activeTab === 'HISTORY' && (
              <AnimatedPage type="fade">
-               <HistoryScreen history={history} config={config} isSupervisor={appMode === 'SUPERVISOR'} />
+               <HistoryScreen 
+                 history={history} 
+                 config={config} 
+                 isSupervisor={appMode === 'SUPERVISOR'}
+                 onToggleImportant={handleToggleImportant}
+                 onDeleteEvent={handleDeleteEventFromHistory}
+                 onHistoryUpdate={handleHistoryUpdate}
+                 onNavigateToImportant={handleNavigateToImportant}
+               />
              </AnimatedPage>
           )}
           
@@ -841,10 +1107,10 @@ export default function App() {
              </AnimatedPage>
           )}
           
-          {/* 子页面 - ADD_MED 已移至独立渲染（带滑动返回） */}
+          {/* 子页面 - ADD_MED 和 IMPORTANT_RECORDS 已移至独立渲染（带滑动返回） */}
           {activeTab === 'LANGUAGE' && (
              <AnimatedPage type={getTransitionType('LANGUAGE')}>
-               <LanguageView setActiveTab={setActiveTab} />
+                <LanguageView setActiveTab={setActiveTab} />
              </AnimatedPage>
           )}
           
@@ -854,7 +1120,7 @@ export default function App() {
         </View>
       </SafeAreaView>
 
-      {/* 子页面（LANGUAGE）时隐藏 Tab 栏，ADD_MED 已在前面提前返回 */}
+      {/* 子页面（LANGUAGE）时隐藏 Tab 栏，ADD_MED 和 IMPORTANT_RECORDS 已在前面提前返回 */}
       {activeTab !== 'LANGUAGE' && (
         appMode === 'USER' ? (
           <AnimatedTabBar

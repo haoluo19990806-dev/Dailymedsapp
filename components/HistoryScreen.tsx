@@ -1,16 +1,29 @@
 import { LogList } from '@/components/LogList';
 import { HistoryRecord, MedConfig } from '@/types';
-import React, { useMemo, useState } from 'react';
+import { Star } from 'lucide-react-native';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FlatList, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface HistoryScreenProps {
   history: HistoryRecord;
   config: MedConfig[];
   isSupervisor: boolean;
+  onToggleImportant?: (eventId: string, isImportant: boolean) => void;
+  onDeleteEvent?: (eventId: string) => void;
+  onHistoryUpdate?: (updatedHistory: HistoryRecord) => void;
+  onNavigateToImportant?: () => void;
 }
 
-export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, isSupervisor }) => {
+export const HistoryScreen: React.FC<HistoryScreenProps> = ({ 
+  history, 
+  config, 
+  isSupervisor,
+  onToggleImportant,
+  onDeleteEvent,
+  onHistoryUpdate,
+  onNavigateToImportant,
+}) => {
   const { t } = useTranslation();
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const now = new Date();
@@ -19,6 +32,59 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
     const d = String(now.getDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   });
+
+  // 乐观更新：切换重要标记
+  const handleToggleImportant = useCallback((eventId: string, isImportant: boolean) => {
+    // 立即更新本地状态
+    const updatedHistory = { ...history };
+    for (const dateKey in updatedHistory) {
+      const index = updatedHistory[dateKey].findIndex(e => e.id === eventId);
+      if (index >= 0) {
+        updatedHistory[dateKey] = [...updatedHistory[dateKey]];
+        updatedHistory[dateKey][index] = {
+          ...updatedHistory[dateKey][index],
+          isImportant
+        };
+        break;
+      }
+    }
+    
+    // 通知父组件更新
+    if (onHistoryUpdate) {
+      onHistoryUpdate(updatedHistory);
+    }
+    
+    // 调用后端同步
+    if (onToggleImportant) {
+      onToggleImportant(eventId, isImportant);
+    }
+  }, [history, onHistoryUpdate, onToggleImportant]);
+
+  // 乐观更新：删除记录
+  const handleDeleteEvent = useCallback((eventId: string) => {
+    // 立即更新本地状态
+    const updatedHistory = { ...history };
+    for (const dateKey in updatedHistory) {
+      const index = updatedHistory[dateKey].findIndex(e => e.id === eventId);
+      if (index >= 0) {
+        updatedHistory[dateKey] = updatedHistory[dateKey].filter(e => e.id !== eventId);
+        if (updatedHistory[dateKey].length === 0) {
+          delete updatedHistory[dateKey];
+        }
+        break;
+      }
+    }
+    
+    // 通知父组件更新
+    if (onHistoryUpdate) {
+      onHistoryUpdate(updatedHistory);
+    }
+    
+    // 调用后端同步
+    if (onDeleteEvent) {
+      onDeleteEvent(eventId);
+    }
+  }, [history, onHistoryUpdate, onDeleteEvent]);
 
   const dates = useMemo(() => {
     const list = [];
@@ -54,6 +120,17 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
 
   return (
     <View className="flex-1 w-full bg-white pt-4">
+      {/* 悬浮入口按钮 - 重要记录（患者模式和监督者专注模式都显示） */}
+      {onNavigateToImportant && (
+        <TouchableOpacity
+          onPress={onNavigateToImportant}
+          style={styles.fab}
+          activeOpacity={0.8}
+        >
+          <Star size={28} color="#ffffff" fill="#ffffff" />
+        </TouchableOpacity>
+      )}
+      
       <View className="h-28 mb-2">
         <FlatList
           data={dates}
@@ -101,13 +178,34 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({ history, config, i
            </Text>
         </View>
         
-        {/* 🔥 修复点：将 isSupervisor 传递给 LogList */}
         <LogList 
           events={dayEvents} 
           getMedConfig={getMedConfig} 
           isSupervisor={isSupervisor}
+          onToggleImportant={handleToggleImportant}
+          onDeleteEvent={handleDeleteEvent}
         />
       </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fb923c', // 浅橙色
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
+    zIndex: 100,
+  },
+});

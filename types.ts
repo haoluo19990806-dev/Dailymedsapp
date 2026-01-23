@@ -72,7 +72,10 @@ export interface TimelineEvent {
   // 身体数据事件字段
   healthType?: HealthDataType; 
   healthValue?: HealthValue;   
-  note?: string;               
+  note?: string;
+  
+  // 重要标记
+  isImportant?: boolean;
 }
 
 // 4. 历史记录存储结构
@@ -106,10 +109,12 @@ export type Tab =
   | 'TASKS'       // 专注模式：任务
   | 'FOCUS_HISTORY' // 专注模式：历史
   | 'FOCUS_TRENDS'  // 专注模式：趋势
+  | 'FOCUS_IMPORTANT_RECORDS' // 专注模式：重要记录
   | 'ADD_MED' 
   | 'LANGUAGE'
   | 'TRENDS'      // 患者模式趋势
-  | 'HISTORY';    // 患者模式历史
+  | 'HISTORY'     // 患者模式历史
+  | 'IMPORTANT_RECORDS'; // 重要记录页面
 
 // 8. 应用模式 (AppMode)
 export type AppMode = 'LANDING' | 'USER' | 'SUPERVISOR';

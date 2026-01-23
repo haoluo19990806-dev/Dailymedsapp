@@ -1,33 +1,68 @@
 import { HistoryRecord, TimelineEvent } from '@/types';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
 const STORAGE_KEYS = {
-  HISTORY: 'offline_history',
+  HISTORY_PREFIX: 'offline_history_',
   PENDING_SYNC: 'pending_sync_queue',
-  LAST_SYNC_TIME: 'last_sync_time',
+  LAST_SYNC_TIME_PREFIX: 'last_sync_time_',
+};
+
+/**
+ * 获取当前用户ID（用于缓存键）
+ */
+const getCurrentUserId = async (): Promise<string | null> => {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    return user?.id || null;
+  } catch (e) {
+    return null;
+  }
+};
+
+/**
+ * 获取用户特定的缓存键
+ */
+const getUserHistoryKey = async (userId?: string): Promise<string> => {
+  const uid = userId || await getCurrentUserId();
+  if (!uid) {
+    throw new Error('无法获取用户ID，无法访问缓存');
+  }
+  return `${STORAGE_KEYS.HISTORY_PREFIX}${uid}`;
+};
+
+const getUserSyncTimeKey = async (userId?: string): Promise<string> => {
+  const uid = userId || await getCurrentUserId();
+  if (!uid) {
+    throw new Error('无法获取用户ID，无法访问缓存');
+  }
+  return `${STORAGE_KEYS.LAST_SYNC_TIME_PREFIX}${uid}`;
 };
 
 /**
  * 离线存储服务 - 优先使用本地数据，确保无网络也能使用
+ * 按用户ID隔离缓存，避免数据混乱
  */
 export const offlineStorage = {
   /**
-   * 保存历史记录到本地（立即生效）
+   * 保存历史记录到本地（立即生效，按用户隔离）
    */
-  saveHistory: async (history: HistoryRecord): Promise<void> => {
+  saveHistory: async (history: HistoryRecord, userId?: string): Promise<void> => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.HISTORY, JSON.stringify(history));
+      const key = await getUserHistoryKey(userId);
+      await AsyncStorage.setItem(key, JSON.stringify(history));
     } catch (e) {
       console.error('保存本地历史失败', e);
     }
   },
 
   /**
-   * 从本地加载历史记录（优先使用）
+   * 从本地加载历史记录（优先使用，按用户隔离）
    */
-  loadHistory: async (): Promise<HistoryRecord> => {
+  loadHistory: async (userId?: string): Promise<HistoryRecord> => {
     try {
-      const data = await AsyncStorage.getItem(STORAGE_KEYS.HISTORY);
+      const key = await getUserHistoryKey(userId);
+      const data = await AsyncStorage.getItem(key);
       if (data) {
         return JSON.parse(data);
       }
@@ -38,9 +73,9 @@ export const offlineStorage = {
   },
 
   /**
-   * 添加事件到本地（立即生效，不等待云端）
+   * 添加事件到本地（立即生效，不等待云端，按用户隔离）
    */
-  addEventLocally: async (event: TimelineEvent): Promise<void> => {
+  addEventLocally: async (event: TimelineEvent, userId?: string): Promise<void> => {
     try {
       // 验证 dateKey 是否存在
       if (!event.dateKey || typeof event.dateKey !== 'string') {
@@ -48,7 +83,7 @@ export const offlineStorage = {
         return;
       }
 
-      const history = await offlineStorage.loadHistory();
+      const history = await offlineStorage.loadHistory(userId);
       const dateKey = event.dateKey;
       
       if (!history[dateKey]) {
@@ -63,7 +98,7 @@ export const offlineStorage = {
       
       if (!exists) {
         history[dateKey].push(event);
-        await offlineStorage.saveHistory(history);
+        await offlineStorage.saveHistory(history, userId);
       }
     } catch (e) {
       console.error('本地添加事件失败', e);
@@ -71,14 +106,14 @@ export const offlineStorage = {
   },
 
   /**
-   * 从本地删除事件（立即生效）
+   * 从本地删除事件（立即生效，按用户隔离）
    */
-  removeEventLocally: async (eventId: string, dateKey: string): Promise<void> => {
+  removeEventLocally: async (eventId: string, dateKey: string, userId?: string): Promise<void> => {
     try {
-      const history = await offlineStorage.loadHistory();
+      const history = await offlineStorage.loadHistory(userId);
       if (history[dateKey]) {
         history[dateKey] = history[dateKey].filter(e => e.id !== eventId);
-        await offlineStorage.saveHistory(history);
+        await offlineStorage.saveHistory(history, userId);
       }
     } catch (e) {
       console.error('本地删除事件失败', e);
@@ -86,11 +121,11 @@ export const offlineStorage = {
   },
 
   /**
-   * 合并云端数据到本地（智能合并，避免冲突）
+   * 合并云端数据到本地（智能合并，避免冲突，按用户隔离）
    */
-  mergeCloudHistory: async (cloudHistory: HistoryRecord): Promise<HistoryRecord> => {
+  mergeCloudHistory: async (cloudHistory: HistoryRecord, userId?: string): Promise<HistoryRecord> => {
     try {
-      const localHistory = await offlineStorage.loadHistory();
+      const localHistory = await offlineStorage.loadHistory(userId);
       const merged: HistoryRecord = { ...cloudHistory };
 
       // 合并本地数据（保留本地未同步的记录）
@@ -126,8 +161,8 @@ export const offlineStorage = {
         merged[dateKey].sort((a, b) => a.timestamp - b.timestamp);
       });
 
-      // 保存合并后的数据
-      await offlineStorage.saveHistory(merged);
+      // 保存合并后的数据（按用户隔离）
+      await offlineStorage.saveHistory(merged, userId);
       return merged;
     } catch (e) {
       console.error('合并数据失败', e);
@@ -136,22 +171,24 @@ export const offlineStorage = {
   },
 
   /**
-   * 保存最后同步时间
+   * 保存最后同步时间（按用户隔离）
    */
-  saveLastSyncTime: async (): Promise<void> => {
+  saveLastSyncTime: async (userId?: string): Promise<void> => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.LAST_SYNC_TIME, Date.now().toString());
+      const key = await getUserSyncTimeKey(userId);
+      await AsyncStorage.setItem(key, Date.now().toString());
     } catch (e) {
       console.error('保存同步时间失败', e);
     }
   },
 
   /**
-   * 获取最后同步时间
+   * 获取最后同步时间（按用户隔离）
    */
-  getLastSyncTime: async (): Promise<number> => {
+  getLastSyncTime: async (userId?: string): Promise<number> => {
     try {
-      const time = await AsyncStorage.getItem(STORAGE_KEYS.LAST_SYNC_TIME);
+      const key = await getUserSyncTimeKey(userId);
+      const time = await AsyncStorage.getItem(key);
       return time ? parseInt(time, 10) : 0;
     } catch (e) {
       return 0;
